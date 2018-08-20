@@ -1,0 +1,3 @@
+name: minesweeper-reasoning
+depend: standard-library
+include: .

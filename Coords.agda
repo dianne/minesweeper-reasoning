@@ -1,9 +1,9 @@
 open import Data.Nat
 open import Data.Integer using (∣_∣; _⊖_)
 open import Data.Product
-open import Data.Fin
+open import Data.Fin hiding (_≟_)
 open import Relation.Binary using (Decidable)
-open import Relation.Binary.PropositionalEquality renaming (proof-irrelevance to ≡-irrelevance)
+open import Relation.Binary.PropositionalEquality
 
 open import Enumeration as Enum using (Enumeration)
 

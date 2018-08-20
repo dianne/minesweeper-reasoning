@@ -3,8 +3,8 @@
 open import Data.Unit
 open import Data.Product
 open import Data.Nat as ℕ using (ℕ)
-open import Data.List
-open import Relation.Binary.PropositionalEquality renaming (proof-irrelevance to ≡-irrelevance)
+open import Data.List hiding (lookup)
+open import Relation.Binary.PropositionalEquality
 open import Relation.Binary using () renaming (Decidable to Decidable₂)
 open import Relation.Unary  using () renaming (Decidable to Decidable₁)
 open import Relation.Nullary
@@ -23,7 +23,7 @@ _[_]✓ {bounds} grid coords with lookup coords grid
 ... | safe n = Σ[ neighboringMines ∈ Enumeration (mine Neighboring coords on grid) ] n ≡ length (Enumeration.list neighboringMines)
 
 _✓ : ∀ {bounds} → Board KnownTile bounds → Set
-_✓ {bounds} grid = ∀ coords -> grid [ coords ]✓
+_✓ {bounds} grid = ∀ coords → grid [ coords ]✓
 
 mine? : Decidable₁ (_≡_ mine)
 mine? mine     = yes refl

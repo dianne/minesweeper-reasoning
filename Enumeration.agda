@@ -1,10 +1,12 @@
 module Enumeration where
 
 open import Data.List as List using (List; []; _∷_)
+import Data.List.Categorical as List
 open import Data.List.Any
 import Data.List.Any.Properties as AnyProp
-open import Data.List.Any.Membership.Propositional
-import Data.List.Any.Membership.Propositional.Properties as ∈Prop
+open import Data.List.Membership.Propositional
+import Data.List.Membership.Propositional.Properties as ∈Prop
+open import Data.List.Relation.BagAndSetEquality
 open import Data.Fin
 import Data.Fin.Properties as FinProp
 open import Data.Nat as ℕ
@@ -206,21 +208,13 @@ enum₁ ⊗ enum₂ = record
 
 
 private
-  -- for until the next release, when it's in Relation.Binary.PropositionalEquality
-  isPropositional : ∀ {a} → Set a → Set a
-  isPropositional A = (a b : A) → a ≡ b
-
-  IrrelevantPred : ∀ {a ℓ} {A : Set a} → (A → Set ℓ) → Set (ℓ Level.⊔ a)
-  IrrelevantPred P = ∀ {x} → isPropositional (P x)
-
   module Filter {A : Set} {P : A → Set} (P-irrelevant : IrrelevantPred P) (P? : Decidable P) where
     discardNo : ∀ {a} → Dec (P a) → Maybe (Σ A P)
     discardNo {a = a} (yes p) = just (a , p)
     discardNo (no ¬p) = nothing
 
-    -- also change gfilter to mapMaybe
     Σfilter : List A → List (Σ A P)
-    Σfilter = List.gfilter (discardNo ∘ P?)
+    Σfilter = List.mapMaybe (discardNo ∘ P?)
 
     Σfilter-∈ : ∀ {xs x} → x ∈ xs → (Px : P x) → (x , Px) ∈ Σfilter xs
     Σfilter-∈ {x ∷ xs} (here refl) Px with P? x
