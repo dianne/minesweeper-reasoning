@@ -1,4 +1,4 @@
-module Enumeration where
+module Minesweeper.Enumeration where
 
 open import Data.List as List using (List; []; _∷_)
 import Data.List.Categorical as List

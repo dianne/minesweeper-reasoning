@@ -1,5 +1,7 @@
 -- the rules of filled minesweeper boards: do the numbers tell the truth?
 
+module Minesweeper.Rules where
+
 open import Data.Unit
 open import Data.Product
 open import Data.Nat as ℕ using (ℕ)
@@ -9,9 +11,9 @@ open import Relation.Binary using () renaming (Decidable to Decidable₂)
 open import Relation.Unary  using () renaming (Decidable to Decidable₁)
 open import Relation.Nullary
 
-open import Coords
-open import Board
-open import Enumeration as Enum using (Enumeration)
+open import Minesweeper.Coords
+open import Minesweeper.Board
+open import Minesweeper.Enumeration as Enum using (Enumeration)
 
 data KnownTile : Set where
   mine : KnownTile

@@ -1,8 +1,10 @@
 -- a hopefully-self-evident description of valid minesweeper moves
 
-open import Coords
-open import Board
-open import Rules
+module Minesweeper.Moves where
+
+open import Minesweeper.Coords
+open import Minesweeper.Board
+open import Minesweeper.Rules
 
 data Tile : Set where
   known   : KnownTile → Tile

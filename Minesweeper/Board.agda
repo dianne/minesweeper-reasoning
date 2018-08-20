@@ -1,8 +1,10 @@
+module Minesweeper.Board where
+
 open import Data.Vec as Vec using (Vec)
 open import Data.Product
 open import Relation.Binary.PropositionalEquality
 
-open import Coords
+open import Minesweeper.Coords
 
 Board : Set → Bounds → Set
 Board A (w , h) = Vec (Vec A w) h

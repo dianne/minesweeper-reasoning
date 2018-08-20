@@ -1,3 +1,5 @@
+module Minesweeper.Coords where
+
 open import Data.Nat
 open import Data.Integer using (∣_∣; _⊖_)
 open import Data.Product
@@ -5,7 +7,7 @@ open import Data.Fin hiding (_≟_)
 open import Relation.Binary using (Decidable)
 open import Relation.Binary.PropositionalEquality
 
-open import Enumeration as Enum using (Enumeration)
+open import Minesweeper.Enumeration as Enum using (Enumeration)
 
 Bounds : Set
 Bounds = ℕ × ℕ
