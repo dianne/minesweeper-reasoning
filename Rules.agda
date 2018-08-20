@@ -17,13 +17,17 @@ data KnownTile : Set where
   mine : KnownTile
   safe : ℕ → KnownTile
 
+-- a numbered tile is good if the number on it matches the number of mines adjacent to it.
+-- since all Enumerations of a type have the same length, it's sufficient to provide only one as evidence
 _[_]✓ : ∀ {bounds} → Board KnownTile bounds → Coords bounds → Set
 _[_]✓ {bounds} grid coords with lookup coords grid
 ... | mine = ⊤
 ... | safe n = Σ[ neighboringMines ∈ Enumeration (mine Neighboring coords on grid) ] n ≡ length (Enumeration.list neighboringMines)
 
+-- a board is good if all positions on it are good
 _✓ : ∀ {bounds} → Board KnownTile bounds → Set
 _✓ {bounds} grid = ∀ coords → grid [ coords ]✓
+
 
 mine? : Decidable₁ (_≡_ mine)
 mine? mine     = yes refl

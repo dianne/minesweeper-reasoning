@@ -12,18 +12,21 @@ data Guess : Set where
   mine⚐ : Guess
   safe⚐ : Guess
 
+-- tile filling: an unknown tile can be filled with anything
 data _↝▣_ : Tile → KnownTile → Set where
   ↝▣known   : ∀ s → known s ↝▣ s
   ↝▣unknown : ∀ s → unknown ↝▣ s
 
+-- board filling: can a fully filled board be reached by filling in the unknown tiles of a partial board?
 _↝⊞_ : ∀ {bounds} → Board Tile bounds → Board KnownTile bounds → Set
 holey ↝⊞ filled = ∀ coords → lookup coords holey ↝▣ lookup coords filled
 
+-- guessing: is a guess of a tile's type valid for that tile?
 data _↝⚐_ : Guess → KnownTile → Set where
   ↝⚐mine : mine⚐ ↝⚐ mine
   ↝⚐safe : ∀ n → safe⚐ ↝⚐ safe n
 
--- move validity relation: a guess is valid when it holds in every rule-respecting way to fill the board's unfilled tiles
+-- move validity: a guess as to a tile's identity on a board is valid when it holds in every rule-respecting way to fill the board's unfilled tiles
 _[_]↝✓_ : ∀ {bounds} → Board Tile bounds → Coords bounds → Guess → Set
 grid [ coords ]↝✓ guess = ∀ grid′ →
   grid ↝⊞ grid′ →

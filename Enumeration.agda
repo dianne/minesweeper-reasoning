@@ -25,6 +25,12 @@ open import Data.Sum as Sum
 open import Category.Monad
 import Level
 
+-- in order to talk about the number of mines adjacent to a tile, we define Enumeration:
+-- a list of all the elements of a type, with each appearing once.
+-- our goal here is to develop the necessary machinery to do that. specifically, we need
+-- that all Enumerations of a type have the same length (they're unique up to bag equality),
+-- and we need to be able to be able to enumerate the adjacent mines of a tile, (which we
+-- get by enumerating any m×n grid and filtering by a predicate)
 record Enumeration A : Set where
   field
     list : List A
