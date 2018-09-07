@@ -12,14 +12,17 @@ import Data.Fin.Properties as FinProp
 open import Data.Nat as ℕ
 import Data.Nat.Properties as ℕProp
 open import Data.Maybe using (Maybe; just; nothing)
+open import Data.Empty
 open import Function
 open import Function.Inverse as Inverse using (Inverse; _↔_)
 open import Function.Injection as Injection using (Injection; _↣_) renaming (_∘_ to _⟪∘⟫_)
 open import Function.Equality using (_⟨$⟩_)
-open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
 open import Relation.Nullary.Negation
-open import Relation.Unary using (Decidable)
+open import Relation.Nullary.Decidable as Decidable
+open import Relation.Unary  using () renaming (Decidable to Decidable₁)
+open import Relation.Binary using () renaming (Decidable to Decidable₂)
+open import Relation.Binary.PropositionalEquality
 open import Data.Product
 open import Data.Sum as Sum
 open import Category.Monad
@@ -29,8 +32,9 @@ import Level
 -- a list of all the elements of a type, with each appearing once.
 -- our goal here is to develop the necessary machinery to do that. specifically, we need
 -- that all Enumerations of a type have the same length (they're unique up to bag equality),
--- and we need to be able to be able to enumerate the adjacent mines of a tile, (which we
--- get by enumerating any m×n grid and filtering by a predicate)
+-- we need to be able to be able to enumerate the adjacent mines of a tile, (which we
+-- get by enumerating any m×n grid and filtering by a predicate), and we need that a list with
+-- unique entries with the same length as an Enumeration is itself complete
 record Enumeration A : Set where
   field
     list : List A
@@ -40,6 +44,7 @@ record Enumeration A : Set where
 open Enumeration
 
 
+-- first, Enumerations are unique up to bag equality and thus all equal in length
 private
   there-injective : ∀ {A : Set} {P : A → Set} {x xs} {p₁ p₂ : Any P xs} → there {x = x} p₁ ≡ there p₂ → p₁ ≡ p₂
   there-injective refl = refl
@@ -156,6 +161,52 @@ enumeration-length-uniform enum₁ enum₂ = ℕProp.≤-antisym
   (subbag-length-≤ (bag-=⇒ (enumeration-bag-equals enum₂ enum₁)))
 
 
+-- next, let's go the other way: lists with as many unique elements as an Enumeration are complete.
+private
+  -- we need decidable equality in order to find the indices in our list where each element lives. thankfully, we can derive that from the Enumeration.
+  index-≡ : ∀ {A : Set} {xs : List A} {x y} (ix : x ∈ xs) (iy : y ∈ xs) → index ix ≡ index iy → x ≡ y
+  index-≡ (here refl) (here refl) i-≡ = refl
+  index-≡ (here _) (there _) ()
+  index-≡ (there _) (here _) ()
+  index-≡ (there ix) (there iy) i-≡ = index-≡ ix iy (FinProp.suc-injective i-≡)
+
+  enumerable-≟ : ∀ {A} (enum : Enumeration A) → Decidable₂ (_≡_ {A = A})
+  enumerable-≟ enum a b = Decidable.map′ (index-≡ _ _) (λ { refl → refl }) (index (complete enum a) FinProp.≟ index (complete enum b))
+
+  -- if a list is missing any elements, we can show it must be shorter than an Enumeration:
+  -- when we add the missing element it's still a subbag of the Enumeration, so it's shorter by at least one
+  strict-subbag-extend : ∀ {A : Set} {a : A} {xs ys} → a ∉ xs → a ∈ ys → xs ∼[ subbag ] ys → a ∷ xs ∼[ subbag ] ys
+  strict-subbag-extend a∉xs a∈ys xs⊑ys = record
+    { to = →-to-⟶ λ
+      { (here refl)  → a∈ys
+      ; (there x∈xs) → Injection.to xs⊑ys ⟨$⟩ x∈xs }
+    ; injective = λ
+      { {here refl} {here refl} refl → refl
+      ; {here refl} {there x∈xs} images-≡ → ⊥-elim (a∉xs x∈xs)
+      ; {there x∈xs} {here refl} images-≡ → ⊥-elim (a∉xs x∈xs)
+      ; {there x∈xs₁} {there x∈xs₂} images-≡ → cong there (Injection.injective xs⊑ys images-≡) } }
+
+  strict-subbag-length : ∀ {A : Set} {a : A} {xs ys} → a ∉ xs → a ∈ ys → xs ∼[ subbag ] ys → List.length xs ℕ.< List.length ys
+  strict-subbag-length {a = a} {xs} {ys} a∉xs a∈ys xs⊑ys = begin
+    List.length xs
+      <⟨ ℕProp.≤-refl ⟩
+    List.length (a ∷ xs)
+      ≤⟨ subbag-length-≤ (strict-subbag-extend a∉xs a∈ys xs⊑ys) ⟩
+    List.length ys ∎ where open ℕProp.≤-Reasoning
+
+  unique-list-enumeration-subbag : ∀ {A} (enum : Enumeration A) (xs : List A) → (∀ {x} (ix₁ ix₂ : x ∈ xs) → ix₁ ≡ ix₂) → xs ∼[ subbag ] list enum
+  unique-list-enumeration-subbag enum xs xs-unique = record
+    { to = →-to-⟶ λ _ → complete enum _
+    ; injective = λ _ → xs-unique _ _ }
+
+long-list-complete : ∀ {A} (enum : Enumeration A) (xs : List A) → (∀ {x} (ix₁ ix₂ : x ∈ xs) → ix₁ ≡ ix₂) → List.length xs ≡ List.length (list enum) → ∀ x → x ∈ xs
+long-list-complete enum xs xs-unique lengths-≡ x with any (enumerable-≟ enum x) xs
+... | yes x∈xs = x∈xs
+... | no  x∉xs = ⊥-elim (ℕProp.<-irrefl lengths-≡ (strict-subbag-length x∉xs (complete enum x) (unique-list-enumeration-subbag enum xs xs-unique)))
+
+
+-- finally, we build towards the ability to enumerate neighboring tiles on a grid
+
 private
   fsuc-Injection : ∀ {n} → Fin n ↣ Fin (suc n)
   fsuc-Injection = record
@@ -214,7 +265,7 @@ enum₁ ⊗ enum₂ = record
 
 
 private
-  module Filter {A : Set} {P : A → Set} (P-irrelevant : IrrelevantPred P) (P? : Decidable P) where
+  module Filter {A : Set} {P : A → Set} (P-irrelevant : IrrelevantPred P) (P? : Decidable₁ P) where
     discardNo : ∀ {a} → Dec (P a) → Maybe (Σ A P)
     discardNo {a = a} (yes p) = just (a , p)
     discardNo (no ¬p) = nothing
@@ -246,7 +297,7 @@ private
     Σfilter-∋-injective {y ∷ xs} Px (there ix₁) (there ix₂) eq | yes p = cong there (Σfilter-∋-injective _ _ _ (there-injective eq))
     Σfilter-∋-injective {y ∷ xs} Px ix₁ ix₂ eq | no ¬p = Σfilter-∋-injective _ _ _ (there-injective eq)
 
-filter : ∀ {A : Set} {P : A → Set} → IrrelevantPred P → Decidable P → Enumeration A → Enumeration (Σ A P)
+filter : ∀ {A : Set} {P : A → Set} → IrrelevantPred P → Decidable₁ P → Enumeration A → Enumeration (Σ A P)
 filter P-irrelevant P? enum = record
   { list = Σfilter (list enum)
   ; complete = λ { (x , Px) → Σfilter-∈ (complete enum x) Px }
