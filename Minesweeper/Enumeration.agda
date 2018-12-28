@@ -20,7 +20,7 @@ open import Function.Equality using (_⟨$⟩_)
 open import Relation.Nullary
 open import Relation.Nullary.Negation
 open import Relation.Nullary.Decidable as Decidable
-open import Relation.Unary  using () renaming (Decidable to Decidable₁)
+open import Relation.Unary  using () renaming (Decidable to Decidable₁ ; Irrelevant to Irrelevant₁)
 open import Relation.Binary using () renaming (Decidable to Decidable₂)
 open import Relation.Binary.PropositionalEquality
 open import Data.Product
@@ -46,9 +46,6 @@ open Enumeration
 
 -- first, Enumerations are unique up to bag equality and thus all equal in length
 private
-  there-injective : ∀ {A : Set} {P : A → Set} {x xs} {p₁ p₂ : Any P xs} → there {x = x} p₁ ≡ there p₂ → p₁ ≡ p₂
-  there-injective refl = refl
-
   remove : ∀ {A : Set} {ys} {y : A} → y ∈ ys → List A
   remove {ys = _ ∷ ys} (here _) = ys
   remove {ys = y ∷ ys} (there y∈ys) = y ∷ remove y∈ys
@@ -80,7 +77,7 @@ private
       inclusion′-spec = inclusion′-helper-spec _ refl
 
       inclusion′-injective : ∀ {a∈xs₁ a∈xs₂ : a ∈ xs} → inclusion′ a∈xs₁ ≡ inclusion′ a∈xs₂ → a∈xs₁ ≡ a∈xs₂
-      inclusion′-injective {a∈xs₁} {a∈xs₂} inclusion′-≡ = there-injective (Injection.injective inclusion
+      inclusion′-injective {a∈xs₁} {a∈xs₂} inclusion′-≡ = AnyProp.there-injective (Injection.injective inclusion
         (begin
           Injection.to inclusion ⟨$⟩ there a∈xs₁
             ≡⟨ sym inclusion′-spec ⟩
@@ -265,7 +262,7 @@ enum₁ ⊗ enum₂ = record
 
 
 private
-  module Filter {A : Set} {P : A → Set} (P-irrelevant : IrrelevantPred P) (P? : Decidable₁ P) where
+  module Filter {A : Set} {P : A → Set} (P-irrelevant : Irrelevant₁ P) (P? : Decidable₁ P) where
     discardNo : ∀ {a} → Dec (P a) → Maybe (Σ A P)
     discardNo {a = a} (yes p) = just (a , p)
     discardNo (no ¬p) = nothing
@@ -294,10 +291,10 @@ private
     Σfilter-∋-injective {y ∷ xs} .p (here refl) (here refl) eq | yes p = refl
     Σfilter-∋-injective {y ∷ xs} .p (here refl) (there ix₂) () | yes p
     Σfilter-∋-injective {y ∷ xs} .p (there ix₁) (here refl) () | yes p
-    Σfilter-∋-injective {y ∷ xs} Px (there ix₁) (there ix₂) eq | yes p = cong there (Σfilter-∋-injective _ _ _ (there-injective eq))
-    Σfilter-∋-injective {y ∷ xs} Px ix₁ ix₂ eq | no ¬p = Σfilter-∋-injective _ _ _ (there-injective eq)
+    Σfilter-∋-injective {y ∷ xs} Px (there ix₁) (there ix₂) eq | yes p = cong there (Σfilter-∋-injective _ _ _ (AnyProp.there-injective eq))
+    Σfilter-∋-injective {y ∷ xs} Px ix₁ ix₂ eq | no ¬p = Σfilter-∋-injective _ _ _ (AnyProp.there-injective eq)
 
-filter : ∀ {A : Set} {P : A → Set} → IrrelevantPred P → Decidable₁ P → Enumeration A → Enumeration (Σ A P)
+filter : ∀ {A : Set} {P : A → Set} → Irrelevant₁ P → Decidable₁ P → Enumeration A → Enumeration (Σ A P)
 filter P-irrelevant P? enum = record
   { list = Σfilter (list enum)
   ; complete = λ { (x , Px) → Σfilter-∈ (complete enum x) Px }
