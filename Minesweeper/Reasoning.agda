@@ -36,18 +36,18 @@ Many_neighboring★_on_excluding_ guess neighbor grid exclude = Neighbors★ gri
 
 data _[_]↝★_ {bounds} grid coords where
   -- known tiles already have a proven identity
-  known★ : ∀ tile guess → lookup coords grid ≡ known tile → guess ↝⚐ tile → grid [ coords ]↝★ guess
+  known★ : ∀ tile guess → lookup coords grid ≡ known tile → guess ⚐✓ tile → grid [ coords ]↝★ guess
 
   -- a tile is safe if an adjacent safe tile already has as many adjacent mines as it can
   safe★ : ∀ neighborMineCount
-    (safeNeighbor : known (safe neighborMineCount) Neighboring coords on grid)
+    (safeNeighbor : (known (safe neighborMineCount) ≡_) Neighboring coords on grid)
     (neighborMines : Many mine⚐ neighboring★ proj₁ (proj₁ safeNeighbor) on grid excluding coords) →
     List.length (Neighbors★.list neighborMines) ≡ neighborMineCount →
       grid [ coords ]↝★ safe⚐
 
   -- a tile is a mine if an adjacent safe tile already has as many adjacent safe tiles as it can
   mine★ : ∀ neighborMineCount
-    (safeNeighbor : known (safe neighborMineCount) Neighboring coords on grid)
+    (safeNeighbor : (known (safe neighborMineCount) ≡_) Neighboring coords on grid)
     (neighborSafes : Many safe⚐ neighboring★ proj₁ (proj₁ safeNeighbor) on grid excluding coords) →
     List.length (Neighbors★.list neighborSafes) + neighborMineCount ≡ List.length (Enumeration.list (neighbors (proj₁ (proj₁ safeNeighbor)))) →
       grid [ coords ]↝★ mine⚐
