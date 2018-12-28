@@ -2,7 +2,8 @@ module Minesweeper.Enumeration where
 
 open import Data.List as List using (List; []; _∷_)
 import Data.List.Categorical as List
-open import Data.List.Any
+import Data.List.Properties as ListProp
+open import Data.List.Any as Any using (Any ; here ; there)
 import Data.List.Any.Properties as AnyProp
 open import Data.List.Membership.Propositional
 import Data.List.Membership.Propositional.Properties as ∈Prop
@@ -19,12 +20,12 @@ open import Function.Injection as Injection using (Injection; _↣_) renaming (_
 open import Function.Equality using (_⟨$⟩_)
 open import Relation.Nullary
 open import Relation.Nullary.Negation
-open import Relation.Nullary.Decidable as Decidable
+import Relation.Nullary.Decidable as Decidable
 open import Relation.Unary  using () renaming (Decidable to Decidable₁ ; Irrelevant to Irrelevant₁)
 open import Relation.Binary using () renaming (Decidable to Decidable₂)
 open import Relation.Binary.PropositionalEquality
-open import Data.Product
-open import Data.Sum as Sum
+open import Data.Product using (Σ; ∃; _×_; _,_)
+open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
 open import Category.Monad
 import Level
 
@@ -161,14 +162,14 @@ enumeration-length-uniform enum₁ enum₂ = ℕProp.≤-antisym
 -- next, let's go the other way: lists with as many unique elements as an Enumeration are complete.
 private
   -- we need decidable equality in order to find the indices in our list where each element lives. thankfully, we can derive that from the Enumeration.
-  index-≡ : ∀ {A : Set} {xs : List A} {x y} (ix : x ∈ xs) (iy : y ∈ xs) → index ix ≡ index iy → x ≡ y
+  index-≡ : ∀ {A : Set} {xs : List A} {x y} (ix : x ∈ xs) (iy : y ∈ xs) → Any.index ix ≡ Any.index iy → x ≡ y
   index-≡ (here refl) (here refl) i-≡ = refl
   index-≡ (here _) (there _) ()
   index-≡ (there _) (here _) ()
   index-≡ (there ix) (there iy) i-≡ = index-≡ ix iy (FinProp.suc-injective i-≡)
 
   enumerable-≟ : ∀ {A} (enum : Enumeration A) → Decidable₂ (_≡_ {A = A})
-  enumerable-≟ enum a b = Decidable.map′ (index-≡ _ _) (λ { refl → refl }) (index (complete enum a) FinProp.≟ index (complete enum b))
+  enumerable-≟ enum a b = Decidable.map′ (index-≡ _ _) (λ { refl → refl }) (Any.index (complete enum a) FinProp.≟ Any.index (complete enum b))
 
   -- if a list is missing any elements, we can show it must be shorter than an Enumeration:
   -- when we add the missing element it's still a subbag of the Enumeration, so it's shorter by at least one
@@ -197,7 +198,7 @@ private
     ; injective = λ _ → xs-unique _ _ }
 
 long-list-complete : ∀ {A} (enum : Enumeration A) (xs : List A) → (∀ {x} (ix₁ ix₂ : x ∈ xs) → ix₁ ≡ ix₂) → List.length xs ≡ List.length (list enum) → ∀ x → x ∈ xs
-long-list-complete enum xs xs-unique lengths-≡ x with any (enumerable-≟ enum x) xs
+long-list-complete enum xs xs-unique lengths-≡ x with Any.any (enumerable-≟ enum x) xs
 ... | yes x∈xs = x∈xs
 ... | no  x∉xs = ⊥-elim (ℕProp.<-irrefl lengths-≡ (strict-subbag-length x∉xs (complete enum x) (unique-list-enumeration-subbag enum xs xs-unique)))
 
@@ -300,3 +301,17 @@ filter P-irrelevant P? enum = record
   ; complete = λ { (x , Px) → Σfilter-∈ (complete enum x) Px }
   ; entries-unique = λ ix₁ ix₂ → Σfilter-∋-injective _ _ _ (entries-unique enum (Σfilter-∋ _ ix₁) (Σfilter-∋ _ ix₂)) }
   where open Filter P-irrelevant P?
+
+
+-- if we have two types, a pair of inverse functions between them, and Enumeration for one, we can get an Enumeration of the same length for the other
+map : ∀ {A B : Set} (f : A ↔ B) → Enumeration A → Enumeration B
+map f enum = record
+  { list = List.map (Inverse.to f ⟨$⟩_) (list enum)
+  ; complete = λ b → subst (_∈ List.map (Inverse.to f ⟨$⟩_) (list enum)) (Inverse.right-inverse-of f b) (∈Prop.∈-map⁺ (complete enum (Inverse.from f ⟨$⟩ b)))
+  ; entries-unique = λ ix₁ ix₂ → Inverse.injective (Inverse.sym ∈Prop.map-∈↔) (images-unique (Inverse.from ∈Prop.map-∈↔ ⟨$⟩ ix₁) (Inverse.from ∈Prop.map-∈↔ ⟨$⟩ ix₂)) } where
+    images-unique : ∀ {b} (ix₁ ix₂ : ∃ λ a → a ∈ list enum × b ≡ Inverse.to f ⟨$⟩ a) → ix₁ ≡ ix₂
+    images-unique (a₁ , a₁∈enum , b≡fa₁) (a₂  , a₂∈enum , b≡fa₂) with Inverse.injective f (trans (sym b≡fa₁) (b≡fa₂))
+    images-unique (a₁ , a₁∈enum , b≡fa₁) (.a₁ , a₂∈enum , b≡fa₂) | refl = cong (a₁ ,_) (cong₂ _,_ (entries-unique enum a₁∈enum a₂∈enum) (≡-irrelevance b≡fa₁ b≡fa₂))
+
+length-map : ∀ {A B : Set} (f : A ↔ B) (enum : Enumeration A) → List.length (list (map f enum)) ≡ List.length (list enum)
+length-map f enum = ListProp.length-map (Inverse.to f ⟨$⟩_) (list enum)
