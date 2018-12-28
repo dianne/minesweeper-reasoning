@@ -16,10 +16,10 @@ Coords : Bounds → Set
 Coords (w , h) = Fin w × Fin h
 
 Adjacent : ∀ {bounds} (coords₁ coords₂ : Coords bounds) → Set
-Adjacent (x₁ , y₁) (x₂ , y₂) = ∣ toℕ x₁ ⊖ toℕ x₂ ∣ ⊔ ∣ toℕ x₂ ⊖ toℕ x₂ ∣ ≡ 1
+Adjacent (x₁ , y₁) (x₂ , y₂) = ∣ toℕ x₁ ⊖ toℕ x₂ ∣ ⊔ ∣ toℕ y₁ ⊖ toℕ y₂ ∣ ≡ 1
 
 adjacent? : ∀ {bounds} → Decidable (Adjacent {bounds})
-adjacent? (x₁ , y₁) (x₂ , y₂) = ∣ toℕ x₁ ⊖ toℕ x₂ ∣ ⊔ ∣ toℕ x₂ ⊖ toℕ x₂ ∣ ≟ 1
+adjacent? (x₁ , y₁) (x₂ , y₂) = ∣ toℕ x₁ ⊖ toℕ x₂ ∣ ⊔ ∣ toℕ y₁ ⊖ toℕ y₂ ∣ ≟ 1
 
 Neighbor : ∀ {bounds} (coords : Coords bounds) → Set
 Neighbor coords = Σ[ neighbor ∈ _ ] Adjacent coords neighbor
