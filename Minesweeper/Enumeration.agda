@@ -263,7 +263,7 @@ enum₁ ⊗ enum₂ = record
 
 
 private
-  module Filter {A : Set} {P : A → Set} (P-irrelevant : Irrelevant₁ P) (P? : Decidable₁ P) where
+  module Filter {A : Set} {P : A → Set} (P? : Decidable₁ P) where
     discardNo : ∀ {a} → Dec (P a) → Maybe (Σ A P)
     discardNo {a = a} (yes p) = just (a , p)
     discardNo (no ¬p) = nothing
@@ -271,13 +271,13 @@ private
     Σfilter : List A → List (Σ A P)
     Σfilter = List.mapMaybe (discardNo ∘ P?)
 
-    Σfilter-∈ : ∀ {xs x} → x ∈ xs → (Px : P x) → (x , Px) ∈ Σfilter xs
-    Σfilter-∈ {x ∷ xs} (here refl) Px with P? x
+    Σfilter-∈ : ∀ {xs x} → x ∈ xs → Irrelevant₁ P → (Px : P x) → (x , Px) ∈ Σfilter xs
+    Σfilter-∈ {x ∷ xs} (here refl) P-irrelevant Px with P? x
     ... | yes Px′ rewrite P-irrelevant Px Px′ = here refl
     ... | no ¬Px = contradiction Px ¬Px
-    Σfilter-∈ {y ∷ xs} (there x∈xs) Px with P? y
-    ... | yes _ = there (Σfilter-∈ x∈xs Px)
-    ... | no  _ = Σfilter-∈ x∈xs Px
+    Σfilter-∈ {y ∷ xs} (there x∈xs) P-irrelevant Px with P? y
+    ... | yes _ = there (Σfilter-∈ x∈xs P-irrelevant Px)
+    ... | no  _ = Σfilter-∈ x∈xs P-irrelevant Px
 
     Σfilter-∋ : ∀ {xs x} (Px : P x) → (x , Px) ∈ Σfilter xs → x ∈ xs
     Σfilter-∋ {[]} Px ()
@@ -298,9 +298,26 @@ private
 filter : ∀ {A : Set} {P : A → Set} → Irrelevant₁ P → Decidable₁ P → Enumeration A → Enumeration (Σ A P)
 filter P-irrelevant P? enum = record
   { list = Σfilter (list enum)
-  ; complete = λ { (x , Px) → Σfilter-∈ (complete enum x) Px }
+  ; complete = λ { (x , Px) → Σfilter-∈ (complete enum x) P-irrelevant Px }
   ; entries-unique = λ ix₁ ix₂ → Σfilter-∋-injective _ _ _ (entries-unique enum (Σfilter-∋ _ ix₁) (Σfilter-∋ _ ix₂)) }
-  where open Filter P-irrelevant P?
+  where open Filter P?
+
+
+-- in order to reason about how the total number of neighbors a tile has equals the sum of its safe neighbors and mine-containing neighbors,
+-- we can `partition` its neighbors into separate enumerations of safe neighbors and mines
+partition : ∀ {A} {P Q : A → Set} → Irrelevant₁ P → Irrelevant₁ Q → (∀ x → P x ⊎ Q x) → (∀ {x} → P x → ¬ Q x) →
+  Enumeration A → Enumeration (Σ A P) × Enumeration (Σ A Q)
+partition P-irrelevant Q-irrelevant which? PQ-disjoint enum = filter P-irrelevant ([ yes , no ∘ flip PQ-disjoint ]′ ∘ which?) enum , filter Q-irrelevant ([ no ∘ PQ-disjoint , yes ]′ ∘ which?) enum
+
+length-partition : ∀ {A} {P Q : A → Set} (P-irrelevant : Irrelevant₁ P) (Q-irrelevant : Irrelevant₁ Q) (which? : ∀ x → P x ⊎ Q x) (PQ-disjoint : ∀ {x} → P x → ¬ Q x) enum →
+  List.length (list enum) ≡ List.length (list (Σ.proj₁ (partition P-irrelevant Q-irrelevant which? PQ-disjoint enum)))
+                        ℕ.+ List.length (list (Σ.proj₂ (partition P-irrelevant Q-irrelevant which? PQ-disjoint enum)))
+length-partition P-irrelevant Q-irrelevant which? PQ-disjoint enum = length-Σfilter (list enum) where
+  length-Σfilter : ∀ xs → List.length xs ≡ List.length (Filter.Σfilter ([ yes , no ∘ flip PQ-disjoint ]′ ∘ which?) xs) ℕ.+ List.length (Filter.Σfilter ([ no ∘ PQ-disjoint , yes ]′ ∘ which?) xs)
+  length-Σfilter [] = refl
+  length-Σfilter (x ∷ xs) with which? x
+  ... | inj₁ Px = cong suc (length-Σfilter xs)
+  ... | inj₂ Qx = trans (cong suc (length-Σfilter xs)) (sym (ℕProp.+-suc _ _))
 
 
 -- if we have two types, a pair of inverse functions between them, and Enumeration for one, we can get an Enumeration of the same length for the other
