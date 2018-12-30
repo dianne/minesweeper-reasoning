@@ -4,6 +4,7 @@ module Minesweeper.Rules where
 
 open import Data.Unit
 open import Data.Product
+open import Data.Sum
 open import Data.Nat as ℕ using (ℕ)
 open import Data.List hiding (lookup)
 open import Relation.Binary.PropositionalEquality
@@ -45,6 +46,13 @@ mine⚐ ⚐✓? mine   = yes ⚐✓mine
 mine⚐ ⚐✓? safe _ = no λ { () }
 safe⚐ ⚐✓? mine   = no λ { () }
 safe⚐ ⚐✓? safe n = yes (⚐✓safe n)
+
+tileType : ∀ tile → (safe⚐ ⚐✓ tile) ⊎ (mine⚐ ⚐✓ tile)
+tileType mine     = inj₂ ⚐✓mine
+tileType (safe n) = inj₁ (⚐✓safe n)
+
+guessesDisjoint : ∀ {tile} → safe⚐ ⚐✓ tile → ¬ mine⚐ ⚐✓ tile
+guessesDisjoint () ⚐✓mine
 
 ⚐✓-irrelevance : Irrelevant _⚐✓_
 ⚐✓-irrelevance ⚐✓mine     ⚐✓mine      = refl

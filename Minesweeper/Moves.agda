@@ -2,6 +2,9 @@
 
 module Minesweeper.Moves where
 
+open import Data.Empty
+open import Relation.Nullary
+
 open import Minesweeper.Coords
 open import Minesweeper.Board
 open import Minesweeper.Rules
@@ -39,3 +42,14 @@ play : ∀ {bounds grid} (coords : Coords bounds) {guess} →
   grid [ coords ]↝✓ guess → (solved : Solvable grid) →
     guess ⚐✓ lookup coords (Solvable.solution solved)
 play coords move solved = move (Solvable.solution solved) (Solvable.relevance solved) (Solvable.validity solved)
+
+
+invert⚐ : Guess → Guess
+invert⚐ mine⚐ = safe⚐
+invert⚐ safe⚐ = mine⚐
+
+¬-⚐✓-invert : ∀ {guess tile} → ¬ guess ⚐✓ tile → invert⚐ guess ⚐✓ tile
+¬-⚐✓-invert {mine⚐} {mine}   ¬guess⚐✓tile = ⊥-elim (¬guess⚐✓tile ⚐✓mine)
+¬-⚐✓-invert {mine⚐} {safe n} ¬guess⚐✓tile = ⚐✓safe n
+¬-⚐✓-invert {safe⚐} {mine}   ¬guess⚐✓tile = ⚐✓mine
+¬-⚐✓-invert {safe⚐} {safe n} ¬guess⚐✓tile = ⊥-elim (¬guess⚐✓tile (⚐✓safe n))
