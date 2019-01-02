@@ -1,10 +1,11 @@
 module Minesweeper.Coords where
 
-open import Data.Nat
+open import Data.Nat renaming (_≟_ to _ℕ≟_)
 open import Data.Integer using (∣_∣; _⊖_)
 open import Data.Integer.Properties using (∣m⊖n∣≡∣n⊖m∣)
 open import Data.Product
-open import Data.Fin hiding (_≟_)
+open import Data.Product.Relation.Pointwise.NonDependent using (≡?×≡?⇒≡?)
+open import Data.Fin renaming (_≟_ to _Fin≟_)
 open import Relation.Binary using (Decidable)
 open import Relation.Binary.PropositionalEquality
 
@@ -20,7 +21,7 @@ Adjacent : ∀ {bounds} (coords₁ coords₂ : Coords bounds) → Set
 Adjacent (x₁ , y₁) (x₂ , y₂) = ∣ toℕ x₁ ⊖ toℕ x₂ ∣ ⊔ ∣ toℕ y₁ ⊖ toℕ y₂ ∣ ≡ 1
 
 adjacent? : ∀ {bounds} → Decidable (Adjacent {bounds})
-adjacent? (x₁ , y₁) (x₂ , y₂) = ∣ toℕ x₁ ⊖ toℕ x₂ ∣ ⊔ ∣ toℕ y₁ ⊖ toℕ y₂ ∣ ≟ 1
+adjacent? (x₁ , y₁) (x₂ , y₂) = ∣ toℕ x₁ ⊖ toℕ x₂ ∣ ⊔ ∣ toℕ y₁ ⊖ toℕ y₂ ∣ ℕ≟ 1
 
 Neighbor : ∀ {bounds} (coords : Coords bounds) → Set
 Neighbor coords = Σ[ neighbor ∈ _ ] Adjacent coords neighbor
@@ -40,3 +41,7 @@ Adjacent-sym (x₁ , y₁) (x₂ , y₂) coords₁-coords₂-Adj = begin
 
 neighbor-sym : ∀ {bounds} {coords : Coords bounds} (neighbor : Neighbor coords) → Neighbor (proj₁ neighbor)
 neighbor-sym {coords = coords} (neighbor , adjacency) = coords , Adjacent-sym coords neighbor adjacency
+
+
+_≟_ : ∀ {bounds} → Decidable (_≡_ {A = Coords bounds})
+_≟_ = ≡?×≡?⇒≡? _Fin≟_ _Fin≟_

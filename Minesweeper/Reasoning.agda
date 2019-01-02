@@ -20,8 +20,8 @@ open import Function.Inverse as Inverse using (_↔_)
 
 open import Data.Fin using (Fin)
 open import Minesweeper.Enumeration as Enum using (Enumeration)
-open import Minesweeper.Coords
-open import Minesweeper.Board
+open import Minesweeper.Coords as Coords using (Coords ; Neighbor ; neighbors)
+open import Minesweeper.Board as Board using (Board ; _Neighboring_on_ ; lookup ; _[_]≔_)
 open import Minesweeper.Rules
 open import Minesweeper.Moves
 
@@ -44,6 +44,12 @@ Many_neighboring★_on_excluding_ guess neighbor grid exclude = Neighbors★ gri
 data _[_]↝★_ {bounds} grid coords where
   -- known tiles already have a proven identity
   known★ : ∀ tile guess → lookup coords grid ≡ known tile → guess ⚐✓ tile → grid [ coords ]↝★ guess
+
+  -- case analysis: in a filled board the tile at `testCoords` will either be safe or a mine, so if we can
+  -- prove that our `guess` holds for the tile at `coords` regardless of which of those it is, then it will always hold.
+  cases★ : ∀ testCoords guess →
+    (∀ tile → (grid [ testCoords ]≔ known tile) [ coords ]↝★ guess) →
+      grid [ coords ]↝★ guess
 
   -- a tile is safe if an adjacent safe tile already has as many adjacent mines as it can
   safe★ : ∀ neighborMineCount
@@ -79,13 +85,24 @@ Neighbors★-alreadyFull : ∀ {bounds} (grid : Board Tile bounds) grid′ coord
 ...                                                                                     | tile↝▣tile′   with lookup coords grid | lookup coords grid′
 ★⇒✓ grid coords (known★ tile guess refl        guess⚐✓tile) grid′ grid↝⊞grid′ grid′✓    | ↝▣known .tile    | .(known tile)      | .tile = guess⚐✓tile
 
+-- for a proof by cases★ on the final board, only the case that applies to our actual final board `grid′` applies
+★⇒✓ grid coords (cases★ testCoords guess cases) grid′ grid↝⊞grid′ grid′✓ = ★⇒✓ _ _ (cases (lookup testCoords grid′)) grid′ gridWithTest↝⊞grid′ grid′✓ where
+  -- proofs by case analysis include information gained from which case is being inspected in the `grid`.
+  -- in the relevant case, our updated `grid` still can complete to `grid′`:
+  gridWithTest↝⊞grid′ : (grid [ testCoords ]≔ known (lookup testCoords grid′)) ↝⊞ grid′
+  gridWithTest↝⊞grid′ coords′ with coords′ Coords.≟ testCoords
+  -- at the test coordinates, it updates to be the known tile at those coordinates on `grid′`, which is present on `grid′`
+  ... | yes refl rewrite Board.lookup∘update coords′ grid (known (lookup coords′ grid′)) = ↝▣known (lookup coords′ grid′)
+  -- and elsewhere it is the same as in `grid`, which is compatible with `grid′` by our assumption `grid↝⊞grid′` that `grid` and `grid′` are compatible
+  ... | no coords′≢testCoords rewrite Board.lookup∘update′ coords′≢testCoords grid (known (lookup testCoords grid′)) = grid↝⊞grid′ coords′
+
 -- a tile being safe★ means it has an adjacent safe tile with as many adjacent mines as it can have, so by `Neighbors★-alreadyFull` it must be safe
 ★⇒✓ grid coords (safe★ neighborMineCount ((safeNeighbor , safeNeighbor-Adj) , safeNeighbor-safe) neighborMines neighborMines-length) grid′ grid↝⊞grid′ grid′✓
   with grid↝⊞grid′ safeNeighbor | grid′✓ safeNeighbor
 ...  | safe↝⊞safe               | safeNeighbor✓                               with lookup safeNeighbor grid | lookup safeNeighbor grid′
 ★⇒✓ grid coords (safe★ neighborMineCount ((safeNeighbor , safeNeighbor-Adj) , refl) neighborMines neighborMines-length) grid′ grid↝⊞grid′ grid′✓
      | ↝▣known .(safe _)        | mineEnumeration , neighborMineCount≡enumLength | .(known (safe _))        | .(safe _) =
-  Neighbors★-alreadyFull grid grid′ safeNeighbor (coords , Adjacent-sym coords safeNeighbor safeNeighbor-Adj) mine⚐ neighborMines mineEnumeration grid↝⊞grid′ grid′✓ enoughMines
+  Neighbors★-alreadyFull grid grid′ safeNeighbor (coords , Coords.Adjacent-sym coords safeNeighbor safeNeighbor-Adj) mine⚐ neighborMines mineEnumeration grid↝⊞grid′ grid′✓ enoughMines
   where
     enoughMines : List.length (Neighbors★.list neighborMines) ≡ List.length (Enumeration.list mineEnumeration)
     enoughMines = trans neighborMines-length neighborMineCount≡enumLength
@@ -96,7 +113,7 @@ Neighbors★-alreadyFull : ∀ {bounds} (grid : Board Tile bounds) grid′ coord
 ...  | safe↝⊞safe               | safeNeighbor✓                               with lookup safeNeighbor grid | lookup safeNeighbor grid′
 ★⇒✓ grid coords (mine★ neighborMineCount ((safeNeighbor , safeNeighbor-Adj) , refl) neighborSafes neighborSafes-length) grid′ grid↝⊞grid′ grid′✓
      | ↝▣known .(safe _)        | mineEnumeration , neighborMineCount≡enumLength | .(known (safe _))        | .(safe _) =
-  Neighbors★-alreadyFull grid grid′ safeNeighbor (coords , Adjacent-sym coords safeNeighbor safeNeighbor-Adj) safe⚐ neighborSafes safeEnumeration grid↝⊞grid′ grid′✓ enoughSafes
+  Neighbors★-alreadyFull grid grid′ safeNeighbor (coords , Coords.Adjacent-sym coords safeNeighbor safeNeighbor-Adj) safe⚐ neighborSafes safeEnumeration grid↝⊞grid′ grid′✓ enoughSafes
   where
     -- since the number of safe neighbors a tile has is defined by how many are left when you take away the mines,
     -- we need to do a bit of arithmetic--splitting all of safeNeighbor's neighbors into safe tiles and mines--to see that our list really has all of them
