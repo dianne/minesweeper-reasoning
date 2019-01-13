@@ -12,7 +12,7 @@ open import Data.Fin
 import Data.Fin.Properties as FinProp
 open import Data.Nat as ℕ
 import Data.Nat.Properties as ℕProp
-open import Data.Maybe using (Maybe; just; nothing)
+open import Data.Maybe as Maybe using (Maybe; just; nothing)
 open import Data.Empty
 open import Function
 open import Function.Inverse as Inverse using (Inverse; _↔_)
@@ -262,38 +262,34 @@ enum₁ ⊗ enum₂ = record
   where open Product enum₁ enum₂
 
 
-private
-  module Filter {A : Set} {P : A → Set} (P? : Decidable₁ P) where
-    discardNo : ∀ {a} → Dec (P a) → Maybe (Σ A P)
-    discardNo {a = a} (yes p) = just (a , p)
-    discardNo (no ¬p) = nothing
+-- this is public since we define Σfilter ourself. it's convenient to see it elsewhere in order to write proofs about it
+module Filter {A : Set} {P : A → Set} (P? : Decidable₁ P) where
+  Σfilter : List A → List (Σ A P)
+  Σfilter = List.mapMaybe (λ x → Maybe.map (x ,_) (Maybe.decToMaybe (P? x)))
 
-    Σfilter : List A → List (Σ A P)
-    Σfilter = List.mapMaybe (discardNo ∘ P?)
+  Σfilter-∈ : ∀ {xs x} → x ∈ xs → Irrelevant₁ P → (Px : P x) → (x , Px) ∈ Σfilter xs
+  Σfilter-∈ {x ∷ xs} (here refl) P-irrelevant Px with P? x
+  ... | yes Px′ rewrite P-irrelevant Px Px′ = here refl
+  ... | no ¬Px = contradiction Px ¬Px
+  Σfilter-∈ {y ∷ xs} (there x∈xs) P-irrelevant Px with P? y
+  ... | yes _ = there (Σfilter-∈ x∈xs P-irrelevant Px)
+  ... | no  _ = Σfilter-∈ x∈xs P-irrelevant Px
 
-    Σfilter-∈ : ∀ {xs x} → x ∈ xs → Irrelevant₁ P → (Px : P x) → (x , Px) ∈ Σfilter xs
-    Σfilter-∈ {x ∷ xs} (here refl) P-irrelevant Px with P? x
-    ... | yes Px′ rewrite P-irrelevant Px Px′ = here refl
-    ... | no ¬Px = contradiction Px ¬Px
-    Σfilter-∈ {y ∷ xs} (there x∈xs) P-irrelevant Px with P? y
-    ... | yes _ = there (Σfilter-∈ x∈xs P-irrelevant Px)
-    ... | no  _ = Σfilter-∈ x∈xs P-irrelevant Px
+  Σfilter-∋ : ∀ {xs x} (Px : P x) → (x , Px) ∈ Σfilter xs → x ∈ xs
+  Σfilter-∋ {[]} Px ()
+  Σfilter-∋ {y ∷ xs} Px x∈xs with P? y
+  Σfilter-∋ {y ∷ xs} _ (here refl) | yes _ = here refl
+  Σfilter-∋ {y ∷ xs} Px (there x∈xs) | yes _ = there (Σfilter-∋ Px x∈xs)
+  ... | no _ = there (Σfilter-∋ Px x∈xs)
 
-    Σfilter-∋ : ∀ {xs x} (Px : P x) → (x , Px) ∈ Σfilter xs → x ∈ xs
-    Σfilter-∋ {[]} Px ()
-    Σfilter-∋ {y ∷ xs} Px x∈xs with P? y
-    Σfilter-∋ {y ∷ xs} _ (here refl) | yes _ = here refl
-    Σfilter-∋ {y ∷ xs} Px (there x∈xs) | yes _ = there (Σfilter-∋ Px x∈xs)
-    ... | no _ = there (Σfilter-∋ Px x∈xs)
-
-    Σfilter-∋-injective : ∀ {xs x} Px (ix₁ ix₂ : (x , Px) ∈ Σfilter xs) → Σfilter-∋ {xs} Px ix₁ ≡ Σfilter-∋ Px ix₂ → ix₁ ≡ ix₂
-    Σfilter-∋-injective {[]} Px () () eq
-    Σfilter-∋-injective {y ∷ xs} Px ix₁ ix₂ eq with P? y
-    Σfilter-∋-injective {y ∷ xs} .p (here refl) (here refl) eq | yes p = refl
-    Σfilter-∋-injective {y ∷ xs} .p (here refl) (there ix₂) () | yes p
-    Σfilter-∋-injective {y ∷ xs} .p (there ix₁) (here refl) () | yes p
-    Σfilter-∋-injective {y ∷ xs} Px (there ix₁) (there ix₂) eq | yes p = cong there (Σfilter-∋-injective _ _ _ (AnyProp.there-injective eq))
-    Σfilter-∋-injective {y ∷ xs} Px ix₁ ix₂ eq | no ¬p = Σfilter-∋-injective _ _ _ (AnyProp.there-injective eq)
+  Σfilter-∋-injective : ∀ {xs x} Px (ix₁ ix₂ : (x , Px) ∈ Σfilter xs) → Σfilter-∋ {xs} Px ix₁ ≡ Σfilter-∋ Px ix₂ → ix₁ ≡ ix₂
+  Σfilter-∋-injective {[]} Px () () eq
+  Σfilter-∋-injective {y ∷ xs} Px ix₁ ix₂ eq with P? y
+  Σfilter-∋-injective {y ∷ xs} .p (here refl) (here refl) eq | yes p = refl
+  Σfilter-∋-injective {y ∷ xs} .p (here refl) (there ix₂) () | yes p
+  Σfilter-∋-injective {y ∷ xs} .p (there ix₁) (here refl) () | yes p
+  Σfilter-∋-injective {y ∷ xs} Px (there ix₁) (there ix₂) eq | yes p = cong there (Σfilter-∋-injective _ _ _ (AnyProp.there-injective eq))
+  Σfilter-∋-injective {y ∷ xs} Px ix₁ ix₂ eq | no ¬p = Σfilter-∋-injective _ _ _ (AnyProp.there-injective eq)
 
 filter : ∀ {A : Set} {P : A → Set} → Irrelevant₁ P → Decidable₁ P → Enumeration A → Enumeration (Σ A P)
 filter P-irrelevant P? enum = record
