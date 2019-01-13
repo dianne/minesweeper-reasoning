@@ -17,8 +17,9 @@ open import Relation.Binary.Construct.Closure.Reflexive as Refl renaming (Refl t
 open import Induction
 open import Induction.WellFounded as WF
 open import Induction.Nat using (<-wellFounded)
+open import Function
 
-open import Minesweeper.Coords
+open import Minesweeper.Coords as Coords
 open import Minesweeper.Board
 open import Minesweeper.Rules
 
@@ -147,3 +148,18 @@ module _ {ℓ bounds} where
   open WF.All (>-wellFounded {bounds}) ℓ public
     renaming ( wfRecBuilder to >-recBuilder
              ; wfRec to >-rec )
+
+-- in order to use this, a helper: filling in an unknown tile results in a more specific board
+fill-> : ∀ {bounds} coords (grid : Board Tile bounds) tile → lookup coords grid ≡ unknown →
+  (grid [ coords ]≔ known tile) > grid
+fill-> coords grid tile coords↦unknown = record
+  { >⇒≥ = fill-≥
+  ; >-strict = coords , fill-≻ }
+  where
+    fill-≻ : lookup coords (grid [ coords ]≔ known tile) ≻ lookup coords grid
+    fill-≻ rewrite lookup∘update coords grid (known tile) | coords↦unknown = known≻unknown
+
+    fill-≥ : (grid [ coords ]≔ known tile) ≥ grid
+    fill-≥ coords′ with coords Coords.≟ coords′
+    ... | yes refl = [ fill-≻ ]
+    ... | no coords≢coords′ rewrite lookup∘update′ (coords≢coords′ ∘ sym) grid (known tile) = refl
