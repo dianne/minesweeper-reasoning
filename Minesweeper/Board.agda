@@ -2,11 +2,14 @@ module Minesweeper.Board where
 
 open import Data.Vec as Vec using (Vec)
 import Data.Vec.Properties as VecProp
+import Data.Vec.Relation.Pointwise.Inductive   as VecIndPointwise
+import Data.Vec.Relation.Pointwise.Extensional as VecExtPointwise
 open import Data.Fin using (_≟_)
 open import Data.Product
 open import Data.Product.Relation.Pointwise.NonDependent using (≡×≡⇒≡)
 open import Function
 open import Relation.Nullary
+open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 open ≡-Reasoning
 
@@ -23,6 +26,18 @@ grid [ (x , y) ]≔ value = grid Vec.[ y ]≔ (Vec.lookup y grid Vec.[ x ]≔ va
 
 _Neighboring_on_ : ∀ {A bounds} → (A → Set) → Coords bounds → Board A bounds → Set
 P Neighboring coords on grid = Σ[ neighbor ∈ Neighbor coords ] P (lookup (proj₁ neighbor) grid)
+
+
+Pointwise : ∀ {ℓ A B} (_∼_ : REL A B ℓ) {bounds} → REL (Board A bounds) (Board B bounds) _
+Pointwise _∼_ grid₁ grid₂ = ∀ coords → lookup coords grid₁ ∼ lookup coords grid₂
+
+Pointwise⇒VecPointwise : ∀ {ℓ A B} {_∼_ : REL A B ℓ} {bounds} {grid₁ : Board A bounds} {grid₂ : Board B bounds} →
+  Pointwise _∼_ grid₁ grid₂ →
+    VecIndPointwise.Pointwise (VecIndPointwise.Pointwise _∼_) grid₁ grid₂
+Pointwise⇒VecPointwise ₁∼₂ =
+  VecExtPointwise.extensional⇒inductive (VecExtPointwise.ext λ y →
+    VecExtPointwise.extensional⇒inductive (VecExtPointwise.ext λ x →
+      ₁∼₂ (x , y) ) )
 
 
 lookup∘update : ∀ {A bounds} (coords : Coords bounds) (grid : Board A bounds) value →
