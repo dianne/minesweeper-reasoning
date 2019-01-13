@@ -58,6 +58,12 @@ guessesDisjoint () ⚐✓mine
 ⚐✓-irrelevance ⚐✓mine     ⚐✓mine      = refl
 ⚐✓-irrelevance (⚐✓safe n) (⚐✓safe .n) = refl
 
+_≟⚐_ : Decidable (_≡_ {A = Guess})
+mine⚐ ≟⚐ mine⚐ = yes refl
+mine⚐ ≟⚐ safe⚐ = no λ ()
+safe⚐ ≟⚐ mine⚐ = no λ ()
+safe⚐ ≟⚐ safe⚐ = yes refl
+
 neighboringMines : ∀ {bounds} (grid : Board KnownTile bounds) (coords : Coords bounds) → Enumeration ((mine⚐ ⚐✓_) Neighboring coords on grid)
 neighboringMines grid coords = Enum.filter ⚐✓-irrelevance (λ { (neighbor , _) → mine⚐ ⚐✓? (lookup neighbor grid) }) (neighbors coords)
 

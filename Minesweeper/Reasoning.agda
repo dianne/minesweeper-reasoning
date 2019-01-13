@@ -5,7 +5,9 @@ module Minesweeper.Reasoning where
 
 open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality
+open import Data.Empty
 open import Data.List as List using (List; []; _∷_)
+open import Data.List.Relation.Pointwise as Pointwise using (Pointwise; []; _∷_)
 open import Data.List.Membership.Propositional
 open import Data.List.All as All using (All; []; _∷_)
 open import Data.List.All.Properties using (All¬⇒¬Any)
@@ -28,6 +30,7 @@ open import Minesweeper.Moves
 -- our inductive family for minesweeper proofs! based on ProofSweeper but using our own machinery
 -- and not intended for hand-writing at all
 data _[_]↝★_ {bounds} (grid : Board Tile bounds) (coords : Coords bounds) : Guess → Set
+record Contradiction {bounds} (grid : Board Tile bounds) : Set
 record Neighbors★ {bounds} (grid : Board Tile bounds) (neighbor : Coords bounds) (exclude : Coords bounds) (guess : Guess) : Set
 Many_neighboring★_on_excluding_ : ∀ {bounds} → Guess → Coords bounds → Board Tile bounds → Coords bounds → Set
 
@@ -41,6 +44,19 @@ record Neighbors★ {bounds} grid neighbor exclude guess where
 
 Many_neighboring★_on_excluding_ guess neighbor grid exclude = Neighbors★ grid neighbor exclude guess
 
+-- noticing contradictions lets us narrow our resoning by dismissing impossible board states.
+-- here we define a contradiction as the existence of a known safe tile whose neighbors we can identify
+-- and whose reported neighboring mine count does not match with the number of mines among those neighbors.
+record Contradiction {bounds} grid where
+  inductive
+  field
+    coords : Coords bounds
+    supposedMineCount : ℕ
+    coords-mineCount : lookup coords grid ≡ known (safe supposedMineCount)
+    neighborGuesses : List Guess
+    neighborsKnown★ : Pointwise (λ neighbor guess → grid [ proj₁ neighbor ]↝★ guess) (Enumeration.list (neighbors coords)) neighborGuesses
+    disparity : supposedMineCount ≢ List.length (List.filter (mine⚐ ≟⚐_) neighborGuesses)
+
 data _[_]↝★_ {bounds} grid coords where
   -- known tiles already have a proven identity
   known★ : ∀ tile guess → lookup coords grid ≡ known tile → guess ⚐✓ tile → grid [ coords ]↝★ guess
@@ -50,6 +66,9 @@ data _[_]↝★_ {bounds} grid coords where
   cases★ : ∀ testCoords guess →
     (∀ tile → (grid [ testCoords ]≔ known tile) [ coords ]↝★ guess) →
       grid [ coords ]↝★ guess
+
+  -- ex falso quodlibet: a board with a contradiction in it has no way of being filled in, so it doesn't matter what we say about it.
+  exfalso★ : ∀ guess → Contradiction grid → grid [ coords ]↝★ guess
 
   -- a tile is safe if an adjacent safe tile already has as many adjacent mines as it can
   safe★ : ∀ neighborMineCount
@@ -95,6 +114,33 @@ Neighbors★-alreadyFull : ∀ {bounds} (grid : Board Tile bounds) grid′ coord
   ... | yes refl rewrite Board.lookup∘update coords′ grid (known (lookup coords′ grid′)) = ↝▣known (lookup coords′ grid′)
   -- and elsewhere it is the same as in `grid`, which is compatible with `grid′` by our assumption `grid↝⊞grid′` that `grid` and `grid′` are compatible
   ... | no coords′≢testCoords rewrite Board.lookup∘update′ coords′≢testCoords grid (known (lookup testCoords grid′)) = grid↝⊞grid′ coords′
+
+-- when we have a Contradiction, there's no valid completion of our board; consequently, any guess will hold, vacuously
+★⇒✓ grid coords (exfalso★ guess contradiction) grid′ grid↝⊞grid′ grid′✓ = ⊥-elim (disparity (begin
+  supposedMineCount
+    ≡⟨ testCoords-mineCount✓ ⟩
+  List.length (Enumeration.list (neighboringMines grid′ testCoords))
+    ≡⟨ mineCountsConsistent neighborsKnown★ ⟩
+  List.length (List.filter (mine⚐ ≟⚐_) neighborGuesses) ∎))
+  where
+  open ≡-Reasoning
+  open Contradiction contradiction renaming (coords to testCoords ; coords-mineCount to testCoords-mineCount)
+  open Enum.Filter {A = Neighbor testCoords} (λ { (neighbor , _) → mine⚐ ⚐✓? (lookup neighbor grid′) }) renaming (Σfilter to filterMines)
+
+  mineCountsConsistent : ∀ {neighbors : List (Neighbor testCoords)} {guesses} → Pointwise (λ neighbor guess → grid [ proj₁ neighbor ]↝★ guess) neighbors guesses →
+    List.length (filterMines neighbors) ≡ List.length (List.filter (mine⚐ ≟⚐_) guesses)
+  mineCountsConsistent [] = refl
+  mineCountsConsistent {(neighbor , _) ∷ _} (neighbor↝★guess ∷ _) with mine⚐ ⚐✓? (lookup neighbor grid′) | ★⇒✓ _ _ neighbor↝★guess _ grid↝⊞grid′ grid′✓
+  mineCountsConsistent {(neighbor , _) ∷ _} (_ ∷ _)                  | yes mine⚐✓tile | guess⚐✓tile with lookup neighbor grid′
+  mineCountsConsistent                      (_ ∷ neighbors↝★guesses) | yes ⚐✓mine     | ⚐✓mine         | .mine = cong suc (mineCountsConsistent neighbors↝★guesses)
+  mineCountsConsistent {(neighbor , _) ∷ _} (_ ∷ _)                  | no ¬mine⚐✓tile | guess⚐✓tile with lookup neighbor grid′ | ¬-⚐✓-invert ¬mine⚐✓tile
+  mineCountsConsistent                      (_ ∷ neighbors↝★guesses) | no ¬mine⚐✓tile | ⚐✓safe .n      | .(safe n)             | ⚐✓safe n = mineCountsConsistent neighbors↝★guesses
+
+  testCoords-mineCount✓ : supposedMineCount ≡ List.length (Enumeration.list (neighboringMines grid′ testCoords))
+  testCoords-mineCount✓ with grid↝⊞grid′ testCoords | grid′✓ testCoords
+  ...                      | tile↝▣tile             | testCoords✓ rewrite testCoords-mineCount with lookup testCoords grid′
+  testCoords-mineCount✓    | ↝▣known _              | mines′ , supposedMineCount≡length-mines′ | _ =
+    trans supposedMineCount≡length-mines′ (Enum.enumeration-length-uniform mines′ (neighboringMines grid′ testCoords))
 
 -- a tile being safe★ means it has an adjacent safe tile with as many adjacent mines as it can have, so by `Neighbors★-alreadyFull` it must be safe
 ★⇒✓ grid coords (safe★ neighborMineCount ((safeNeighbor , safeNeighbor-Adj) , safeNeighbor-safe) neighborMines neighborMines-length) grid′ grid↝⊞grid′ grid′✓
