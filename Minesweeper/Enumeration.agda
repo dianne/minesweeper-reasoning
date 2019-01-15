@@ -24,6 +24,7 @@ import Relation.Nullary.Decidable as Decidable
 open import Relation.Unary  using () renaming (Decidable to Decidable₁ ; Irrelevant to Irrelevant₁)
 open import Relation.Binary using () renaming (Decidable to Decidable₂)
 open import Relation.Binary.PropositionalEquality
+open import Relation.Binary.PropositionalEquality.WithK
 open import Data.Product using (Σ; ∃; _×_; _,_)
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
 open import Category.Monad
@@ -320,11 +321,11 @@ length-partition P-irrelevant Q-irrelevant which? PQ-disjoint enum = length-Σfi
 map : ∀ {A B : Set} (f : A ↔ B) → Enumeration A → Enumeration B
 map f enum = record
   { list = List.map (Inverse.to f ⟨$⟩_) (list enum)
-  ; complete = λ b → subst (_∈ List.map (Inverse.to f ⟨$⟩_) (list enum)) (Inverse.right-inverse-of f b) (∈Prop.∈-map⁺ (complete enum (Inverse.from f ⟨$⟩ b)))
-  ; entries-unique = λ ix₁ ix₂ → Inverse.injective (Inverse.sym ∈Prop.map-∈↔) (images-unique (Inverse.from ∈Prop.map-∈↔ ⟨$⟩ ix₁) (Inverse.from ∈Prop.map-∈↔ ⟨$⟩ ix₂)) } where
+  ; complete = λ b → subst (_∈ List.map (Inverse.to f ⟨$⟩_) (list enum)) (Inverse.right-inverse-of f b) (∈Prop.∈-map⁺ _ (complete enum (Inverse.from f ⟨$⟩ b)))
+  ; entries-unique = λ ix₁ ix₂ → Inverse.injective (Inverse.sym (∈Prop.map-∈↔ _)) (images-unique (Inverse.from (∈Prop.map-∈↔ _) ⟨$⟩ ix₁) (Inverse.from (∈Prop.map-∈↔ _) ⟨$⟩ ix₂)) } where
     images-unique : ∀ {b} (ix₁ ix₂ : ∃ λ a → a ∈ list enum × b ≡ Inverse.to f ⟨$⟩ a) → ix₁ ≡ ix₂
     images-unique (a₁ , a₁∈enum , b≡fa₁) (a₂  , a₂∈enum , b≡fa₂) with Inverse.injective f (trans (sym b≡fa₁) (b≡fa₂))
-    images-unique (a₁ , a₁∈enum , b≡fa₁) (.a₁ , a₂∈enum , b≡fa₂) | refl = cong (a₁ ,_) (cong₂ _,_ (entries-unique enum a₁∈enum a₂∈enum) (≡-irrelevance b≡fa₁ b≡fa₂))
+    images-unique (a₁ , a₁∈enum , b≡fa₁) (.a₁ , a₂∈enum , b≡fa₂) | refl = cong (a₁ ,_) (cong₂ _,_ (entries-unique enum a₁∈enum a₂∈enum) (≡-irrelevant b≡fa₁ b≡fa₂))
 
 length-map : ∀ {A B : Set} (f : A ↔ B) (enum : Enumeration A) → List.length (list (map f enum)) ≡ List.length (list enum)
 length-map f enum = ListProp.length-map (Inverse.to f ⟨$⟩_) (list enum)

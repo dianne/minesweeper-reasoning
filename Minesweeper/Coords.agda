@@ -8,6 +8,7 @@ open import Data.Product.Relation.Pointwise.NonDependent using (≡?×≡?⇒≡
 open import Data.Fin renaming (_≟_ to _Fin≟_)
 open import Relation.Binary using (Decidable)
 open import Relation.Binary.PropositionalEquality
+open import Relation.Binary.PropositionalEquality.WithK
 
 open import Minesweeper.Enumeration as Enum using (Enumeration)
 
@@ -27,7 +28,7 @@ Neighbor : ∀ {bounds} (coords : Coords bounds) → Set
 Neighbor coords = Σ[ neighbor ∈ _ ] Adjacent coords neighbor
 
 neighbors : ∀ {bounds} (coords : Coords bounds) → Enumeration (Neighbor coords)
-neighbors {w , h} coords = Enum.filter ≡-irrelevance (adjacent? coords) (Enum.allFin w Enum.⊗ Enum.allFin h)
+neighbors {w , h} coords = Enum.filter ≡-irrelevant (adjacent? coords) (Enum.allFin w Enum.⊗ Enum.allFin h)
 
 
 Adjacent-sym : ∀ {bounds} (coords₁ coords₂ : Coords bounds) → Adjacent coords₁ coords₂ → Adjacent coords₂ coords₁
