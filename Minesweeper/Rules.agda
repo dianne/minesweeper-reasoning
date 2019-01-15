@@ -79,3 +79,9 @@ _[_]✓? {bounds} grid coords with lookup coords grid
     ≡⟨ Enum.enumeration-length-uniform mines′ (neighboringMines grid coords) ⟩
   length (Enumeration.list (neighboringMines grid coords)) ∎) }
   where open ≡-Reasoning
+
+
+-- if a board is *not* valid, then there must be a specific safe tile on it whose label does not match the number of mines neighboring it
+identify-contradiction : ∀ {bounds} (grid : Board KnownTile bounds) →
+  ¬ grid ✓ → ∃[ coords ] (¬ grid [ coords ]✓)
+identify-contradiction grid ¬grid✓ = ¬∀⟶∃¬ _ (grid [_]✓) (grid [_]✓?) ¬grid✓

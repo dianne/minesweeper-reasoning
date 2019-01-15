@@ -6,9 +6,13 @@ open import Data.Integer.Properties using (∣m⊖n∣≡∣n⊖m∣)
 open import Data.Product
 open import Data.Product.Relation.Pointwise.NonDependent using (≡?×≡?⇒≡?)
 open import Data.Fin renaming (_≟_ to _Fin≟_)
-open import Relation.Binary using (Decidable)
+import      Data.Fin.Properties as Fin
+open import Relation.Nullary
+open import Relation.Unary  using () renaming (Decidable to Decidable₁)
+open import Relation.Binary using () renaming (Decidable to Decidable₂)
 open import Relation.Binary.PropositionalEquality
 open import Relation.Binary.PropositionalEquality.WithK
+open import Function
 
 open import Minesweeper.Enumeration as Enum using (Enumeration)
 
@@ -21,7 +25,7 @@ Coords (w , h) = Fin w × Fin h
 Adjacent : ∀ {bounds} (coords₁ coords₂ : Coords bounds) → Set
 Adjacent (x₁ , y₁) (x₂ , y₂) = ∣ toℕ x₁ ⊖ toℕ x₂ ∣ ⊔ ∣ toℕ y₁ ⊖ toℕ y₂ ∣ ≡ 1
 
-adjacent? : ∀ {bounds} → Decidable (Adjacent {bounds})
+adjacent? : ∀ {bounds} → Decidable₂ (Adjacent {bounds})
 adjacent? (x₁ , y₁) (x₂ , y₂) = ∣ toℕ x₁ ⊖ toℕ x₂ ∣ ⊔ ∣ toℕ y₁ ⊖ toℕ y₂ ∣ ℕ≟ 1
 
 Neighbor : ∀ {bounds} (coords : Coords bounds) → Set
@@ -44,5 +48,12 @@ neighbor-sym : ∀ {bounds} {coords : Coords bounds} (neighbor : Neighbor coords
 neighbor-sym {coords = coords} (neighbor , adjacency) = coords , Adjacent-sym coords neighbor adjacency
 
 
-_≟_ : ∀ {bounds} → Decidable (_≡_ {A = Coords bounds})
+_≟_ : ∀ {bounds} → Decidable₂ (_≡_ {A = Coords bounds})
 _≟_ = ≡?×≡?⇒≡? _Fin≟_ _Fin≟_
+
+
+¬∀⟶∃¬ : ∀ bounds {p} (P : Coords bounds → Set p) → Decidable₁ P →
+  ¬ (∀ coords → P coords) → (∃ λ coords → ¬ P coords)
+¬∀⟶∃¬ bounds P P? ¬P with Fin.¬∀⟶∃¬ _ (λ x → ∀ y → P (x , y)) (Fin.all? ∘ curry P?) (¬P ∘ uncurry)
+...                     | x , ¬Px with Fin.¬∀⟶∃¬ _ (λ y → P (x , y)) (curry P? x) ¬Px
+...                                  | y , ¬Pxy = (x , y) , ¬Pxy
