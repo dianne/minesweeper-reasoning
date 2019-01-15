@@ -183,3 +183,14 @@ holey⊎filled grid with any (any unknown?) grid
     (∈.toAny (∈.∈-lookup (proj₂ coords) grid)
       (subst (_∈ Vec.lookup (proj₂ coords) grid) coords↦unknown
         (∈.∈-lookup (proj₁ coords) (Vec.lookup (proj₂ coords) grid)))))
+
+
+-- _≥_ and _↝⊞_ obey a sort of transitivity: if you can fill in a board, then any more general board
+-- can be filled the same way
+≽-↝▣-trans : ∀ {filled holey} → filled ≽ holey → ∀ {definitelyFilled} → filled ↝▣ definitelyFilled → holey ↝▣ definitelyFilled
+≽-↝▣-trans [ known≻unknown ] (↝▣known tile)   = ↝▣unknown tile
+≽-↝▣-trans refl              (↝▣known tile)   = ↝▣known tile
+≽-↝▣-trans refl              (↝▣unknown tile) = ↝▣unknown tile
+
+≥-↝⊞-trans : ∀ {bounds} {filled holey : Board Tile bounds} → filled ≥ holey → ∀ {fullyFilled} → filled ↝⊞ fullyFilled → holey ↝⊞ fullyFilled
+≥-↝⊞-trans filled≥holey filled↝⊞fullyFilled coords = ≽-↝▣-trans (filled≥holey coords) (filled↝⊞fullyFilled coords)
