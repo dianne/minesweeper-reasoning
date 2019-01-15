@@ -4,13 +4,18 @@ module Minesweeper.Moves where
 
 open import Data.Empty
 open import Data.Product
+open import Data.Sum
 open import Data.Vec as Vec using (Vec; []; _∷_; _++_)
 open import Data.Vec.Relation.Pointwise.Inductive as VecPointwise using ([]; _∷_)
+open import Data.Vec.Any as Any using (Any; any)
+import      Data.Vec.Any.Properties as AnyProp
+open import Data.Vec.Membership.Propositional using (_∈_)
+import      Data.Vec.Membership.Propositional.Properties as ∈
 open import Data.Nat hiding (_>_; _≥_)
 import      Data.Nat.Properties as ℕProp
 open import Data.Fin as Fin using (Fin; zero; suc)
 open import Relation.Nullary
-open import Relation.Unary  renaming (Decidable to Decidable₁)
+open import Relation.Unary  renaming (Decidable to Decidable₁) using ()
 open import Relation.Binary renaming (Decidable to Decidable₂)
 open import Relation.Binary.PropositionalEquality
 open import Relation.Binary.Construct.Closure.Reflexive as Refl renaming (Refl to ReflexiveClosure)
@@ -163,3 +168,18 @@ fill-> coords grid tile coords↦unknown = record
     fill-≥ coords′ with coords Coords.≟ coords′
     ... | yes refl = [ fill-≻ ]
     ... | no coords≢coords′ rewrite lookup∘update′ (coords≢coords′ ∘ sym) grid (known tile) = refl
+
+-- and also to help: a board either has an unknown tile or all of its tiles are known
+holey⊎filled : ∀ {bounds} (grid : Board Tile bounds) →
+  (∃ λ coords → lookup coords grid ≡ unknown) ⊎ (∀ coords → ∃ λ tile → lookup coords grid ≡ known tile)
+holey⊎filled grid with any (any unknown?) grid
+... | yes any-unknown = inj₁ ( (Any.index (AnyProp.lookup-index any-unknown) , Any.index any-unknown)
+                             , sym (AnyProp.lookup-index (AnyProp.lookup-index any-unknown)) )
+... | no ¬any-unknown = inj₂ allKnown where
+  allKnown : ∀ coords → ∃ λ tile → lookup coords grid ≡ known tile
+  allKnown coords with lookup coords grid | inspect (lookup coords) grid
+  ... | known tile | _ = tile , refl
+  ... | unknown    | [ coords↦unknown ] = ⊥-elim (¬any-unknown
+    (∈.toAny (∈.∈-lookup (proj₂ coords) grid)
+      (subst (_∈ Vec.lookup (proj₂ coords) grid) coords↦unknown
+        (∈.∈-lookup (proj₁ coords) (Vec.lookup (proj₂ coords) grid)))))
