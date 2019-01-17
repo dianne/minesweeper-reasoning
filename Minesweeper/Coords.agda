@@ -8,6 +8,7 @@ open import Data.Product.Relation.Pointwise.NonDependent using (≡?×≡?⇒≡
 open import Data.Fin renaming (_≟_ to _Fin≟_)
 import      Data.Fin.Properties as Fin
 open import Relation.Nullary
+import      Relation.Nullary.Decidable as Dec
 open import Relation.Unary  using () renaming (Decidable to Decidable₁)
 open import Relation.Binary using () renaming (Decidable to Decidable₂)
 open import Relation.Binary.PropositionalEquality
@@ -51,6 +52,10 @@ neighbor-sym {coords = coords} (neighbor , adjacency) = coords , Adjacent-sym co
 _≟_ : ∀ {bounds} → Decidable₂ (_≡_ {A = Coords bounds})
 _≟_ = ≡?×≡?⇒≡? _Fin≟_ _Fin≟_
 
+
+all? : ∀ {bounds p} {P : Coords bounds → Set p} → Decidable₁ P →
+  Dec (∀ coords → P coords)
+all? P? = Dec.map′ uncurry curry (Fin.all? (Fin.all? ∘ curry P?))
 
 ¬∀⟶∃¬ : ∀ bounds {p} (P : Coords bounds → Set p) → Decidable₁ P →
   ¬ (∀ coords → P coords) → (∃ λ coords → ¬ P coords)
