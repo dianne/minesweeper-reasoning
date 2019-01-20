@@ -2,8 +2,8 @@ module Minesweeper.Board where
 
 open import Data.Vec as Vec using (Vec)
 import Data.Vec.Properties as VecProp
-import Data.Vec.Relation.Pointwise.Inductive   as VecIndPointwise
-import Data.Vec.Relation.Pointwise.Extensional as VecExtPointwise
+import Data.Vec.Relation.Binary.Pointwise.Inductive   as VecIndPointwise
+import Data.Vec.Relation.Binary.Pointwise.Extensional as VecExtPointwise
 open import Data.Fin using (_≟_)
 open import Data.Product
 open import Data.Product.Relation.Pointwise.NonDependent using (≡×≡⇒≡)

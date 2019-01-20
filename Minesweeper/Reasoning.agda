@@ -7,12 +7,12 @@ open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality
 open import Data.Empty
 open import Data.List as List using (List; []; _∷_)
-open import Data.List.Relation.Pointwise as Pointwise using (Pointwise; []; _∷_)
+open import Data.List.Relation.Unary.All as All using (All; []; _∷_)
+open import Data.List.Relation.Unary.All.Properties using (All¬⇒¬Any)
+open import Data.List.Relation.Unary.Any as Any using (Any; here; there)
+open import Data.List.Relation.Unary.Any.Properties using (there-injective)
+open import Data.List.Relation.Binary.Pointwise as Pointwise using (Pointwise; []; _∷_)
 open import Data.List.Membership.Propositional
-open import Data.List.All as All using (All; []; _∷_)
-open import Data.List.All.Properties using (All¬⇒¬Any)
-open import Data.List.Any as Any using (Any; here; there)
-open import Data.List.Any.Properties using (there-injective)
 open import Data.Product as Σ
 open import Data.Product.Properties
 open import Data.Nat

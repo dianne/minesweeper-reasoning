@@ -6,9 +6,9 @@ open import Data.Empty
 open import Data.Product
 open import Data.Sum
 open import Data.Vec as Vec using (Vec; []; _∷_; _++_)
-open import Data.Vec.Relation.Pointwise.Inductive as VecPointwise using ([]; _∷_)
-open import Data.Vec.Any as Any using (Any; any)
-import      Data.Vec.Any.Properties as AnyProp
+open import Data.Vec.Relation.Unary.Any as Any using (Any; any)
+import      Data.Vec.Relation.Unary.Any.Properties as AnyProp
+open import Data.Vec.Relation.Binary.Pointwise.Inductive as VecPointwise using ([]; _∷_)
 open import Data.Vec.Membership.Propositional using (_∈_)
 import      Data.Vec.Membership.Propositional.Properties as ∈
 open import Data.Nat hiding (_>_; _≥_)

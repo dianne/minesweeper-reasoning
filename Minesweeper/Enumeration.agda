@@ -3,7 +3,7 @@ module Minesweeper.Enumeration where
 open import Data.List as List using (List; []; _∷_)
 import Data.List.Categorical as List
 import Data.List.Properties as ListProp
-open import Data.List.Any as Any using (Any ; here ; there)
+open import Data.List.Relation.Unary.Any as Any using (Any ; here ; there)
 import Data.List.Any.Properties as AnyProp
 open import Data.List.Membership.Propositional
 import Data.List.Membership.Propositional.Properties as ∈Prop
