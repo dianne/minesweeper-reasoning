@@ -27,22 +27,9 @@ open import Minesweeper.Board as Board using (Board ; _Neighboring_on_ ; lookup 
 open import Minesweeper.Rules
 open import Minesweeper.Moves
 
--- our inductive family for minesweeper proofs! based on ProofSweeper but using our own machinery
--- and not intended for hand-writing at all
+-- our inductive family for minesweeper proofs!
 data _[_]↝★_ {bounds} (grid : Board Tile bounds) (coords : Coords bounds) : Guess → Set
 record Contradiction {bounds} (grid : Board Tile bounds) : Set
-record Neighbors★ {bounds} (grid : Board Tile bounds) (neighbor : Coords bounds) (exclude : Coords bounds) (guess : Guess) : Set
-Many_neighboring★_on_excluding_ : ∀ {bounds} → Guess → Coords bounds → Board Tile bounds → Coords bounds → Set
-
-record Neighbors★ {bounds} grid neighbor exclude guess where
-  inductive
-  field
-    list : List (Neighbor neighbor)
-    unique : ∀ {elem} (ix₁ ix₂ : elem ∈ list) → ix₁ ≡ ix₂
-    guess-valid★ : All (λ elem → grid [ proj₁ elem ]↝★ guess) list
-    exclusion : All (λ elem → exclude ≢ proj₁ elem) list
-
-Many_neighboring★_on_excluding_ guess neighbor grid exclude = Neighbors★ grid neighbor exclude guess
 
 -- noticing contradictions lets us narrow our resoning by dismissing impossible board states.
 -- here we define a contradiction as the existence of a known safe tile whose neighbors we can identify
@@ -70,33 +57,11 @@ data _[_]↝★_ {bounds} grid coords where
   -- ex falso quodlibet: a board with a contradiction in it has no way of being filled in, so it doesn't matter what we say about it.
   exfalso★ : ∀ guess → Contradiction grid → grid [ coords ]↝★ guess
 
-  -- a tile is safe if an adjacent safe tile already has as many adjacent mines as it can
-  safe★ : ∀ neighborMineCount
-    (safeNeighbor : (known (safe neighborMineCount) ≡_) Neighboring coords on grid)
-    (neighborMines : Many mine⚐ neighboring★ proj₁ (proj₁ safeNeighbor) on grid excluding coords) →
-    List.length (Neighbors★.list neighborMines) ≡ neighborMineCount →
-      grid [ coords ]↝★ safe⚐
-
-  -- a tile is a mine if an adjacent safe tile already has as many adjacent safe tiles as it can
-  mine★ : ∀ neighborMineCount
-    (safeNeighbor : (known (safe neighborMineCount) ≡_) Neighboring coords on grid)
-    (neighborSafes : Many safe⚐ neighboring★ proj₁ (proj₁ safeNeighbor) on grid excluding coords) →
-    List.length (Neighbors★.list neighborSafes) + neighborMineCount ≡ List.length (Enumeration.list (neighbors (proj₁ (proj₁ safeNeighbor)))) →
-      grid [ coords ]↝★ mine⚐
-
 
 -- let's do soundness first!
 -- roughly, this says that if you use the rules given by _[_]↝★_ to determine whether a tile is safe or a mine,
 -- it will indeed be that, for every possible way the unknown board tiles could be "filled in"
 ★⇒✓ : ∀ {bounds guess} (grid : Board Tile bounds) coords → grid [ coords ]↝★ guess → grid [ coords ]↝✓ guess
-
--- our core lemma: if a list of neighboring mines or safe tiles agrees in length with the complete list of such neighboring tiles in a filled board,
--- then any neighbor not in that list must be of the opposite tile type
-Neighbors★-alreadyFull : ∀ {bounds} (grid : Board Tile bounds) grid′ coords (other : Neighbor coords) guess (neighbors : Many guess neighboring★ coords on grid excluding proj₁ other)
-  (every : Enumeration ((guess ⚐✓_) Neighboring coords on grid′)) →
-  grid ↝⊞ grid′ → grid′ ✓ →
-  List.length (Neighbors★.list neighbors) ≡ List.length (Enumeration.list every) →
-    invert⚐ guess ⚐✓ lookup (proj₁ other) grid′
 
 -- when the tile we're looking at is already known, it will stay the same in all ways of completing the board.
 -- so as long as our guess agrees with its current state, it's valid
@@ -139,52 +104,30 @@ Neighbors★-alreadyFull : ∀ {bounds} (grid : Board Tile bounds) grid′ coord
   ... | mines′ , supposedMineCount≡length-mines′ =
     trans supposedMineCount≡length-mines′ (Enum.enumeration-length-uniform mines′ (neighboringMines grid′ testCoords))
 
--- a tile being safe★ means it has an adjacent safe tile with as many adjacent mines as it can have, so by `Neighbors★-alreadyFull` it must be safe
-★⇒✓ grid coords (safe★ neighborMineCount ((safeNeighbor , safeNeighbor-Adj) , safeNeighbor-safe) neighborMines neighborMines-length) grid′ grid↝⊞grid′ grid′✓
-  with known-safe-✓ safeNeighbor grid grid′ (sym safeNeighbor-safe) grid↝⊞grid′ grid′✓
-... | mineEnumeration , neighborMineCount≡enumLength =
-  Neighbors★-alreadyFull grid grid′ safeNeighbor (coords , Coords.Adjacent-sym coords safeNeighbor safeNeighbor-Adj) mine⚐ neighborMines mineEnumeration grid↝⊞grid′ grid′✓ enoughMines
-  where
-    enoughMines : List.length (Neighbors★.list neighborMines) ≡ List.length (Enumeration.list mineEnumeration)
-    enoughMines = trans neighborMines-length neighborMineCount≡enumLength
 
--- a tile being a mine★ means it has an adjacent safe tile with as many adjacent safe tiles as it can have, so by `Neighbors★-alreadyFull` it must be a mine
-★⇒✓ grid coords (mine★ neighborMineCount ((safeNeighbor , safeNeighbor-Adj) , safeNeighbor-safe) neighborSafes neighborSafes-length) grid′ grid↝⊞grid′ grid′✓
-  with known-safe-✓ safeNeighbor grid grid′ (sym safeNeighbor-safe) grid↝⊞grid′ grid′✓
-... | mineEnumeration , neighborMineCount≡enumLength =
-  Neighbors★-alreadyFull grid grid′ safeNeighbor (coords , Coords.Adjacent-sym coords safeNeighbor safeNeighbor-Adj) safe⚐ neighborSafes safeEnumeration grid↝⊞grid′ grid′✓ enoughSafes
-  where
-    -- since the number of safe neighbors a tile has is defined by how many are left when you take away the mines,
-    -- we need to do a bit of arithmetic--splitting all of safeNeighbor's neighbors into safe tiles and mines--to see that our list really has all of them
-    splitNeighbors : Enumeration ((safe⚐ ⚐✓_) Neighboring safeNeighbor on grid′) × Enumeration ((mine⚐ ⚐✓_) Neighboring safeNeighbor on grid′)
-    splitNeighbors = Enum.partition ⚐✓-irrelevance ⚐✓-irrelevance (tileType ∘ flip lookup grid′ ∘ proj₁) guessesDisjoint (neighbors safeNeighbor)
 
-    safeEnumeration : Enumeration ((safe⚐ ⚐✓_) Neighboring safeNeighbor on grid′)
-    safeEnumeration = proj₁ splitNeighbors
-
-    enoughSafes : List.length (Neighbors★.list neighborSafes) ≡ List.length (Enumeration.list safeEnumeration)
-    enoughSafes = +-cancelʳ-≡ (List.length (Neighbors★.list neighborSafes)) (List.length (Enumeration.list safeEnumeration)) length-splitNeighbors where
-      open ≡-Reasoning
-      length-splitNeighbors : List.length (Neighbors★.list neighborSafes) + neighborMineCount ≡ List.length (Enumeration.list safeEnumeration) + neighborMineCount
-      length-splitNeighbors = begin
-        List.length (Neighbors★.list neighborSafes) + neighborMineCount
-          ≡⟨ neighborSafes-length ⟩
-        List.length (Enumeration.list (neighbors safeNeighbor))
-           ≡⟨ Enum.length-partition ⚐✓-irrelevance ⚐✓-irrelevance (tileType ∘ flip lookup grid′ ∘ proj₁) guessesDisjoint (neighbors safeNeighbor) ⟩
-        List.length (Enumeration.list safeEnumeration) + List.length (Enumeration.list (proj₂ splitNeighbors))
-          ≡⟨ cong (List.length (Enumeration.list safeEnumeration) +_) (Enum.enumeration-length-uniform (proj₂ splitNeighbors) mineEnumeration) ⟩
-        List.length (Enumeration.list safeEnumeration) + List.length (Enumeration.list mineEnumeration)
-          ≡⟨ cong (List.length (Enumeration.list safeEnumeration) +_) (sym neighborMineCount≡enumLength) ⟩
-        List.length (Enumeration.list safeEnumeration) + neighborMineCount ∎
-
-Neighbors★-alreadyFull grid grid′ coords other guess neighbors★ every grid↝⊞grid′ grid′✓ lengths-agree = ¬-⚐✓-invert ¬other↦guess where
+-- now we'll also show that some familiar reasoning principles used in proofsweeper are sound
+-- (and thus as a corrollary of the completeness of `_[_]↝★_`, they can be expressed in terms of those rules).
+-- our core lemma: if a list of mines or safe tiles neighboring some coordinates agrees in length with the
+-- complete list of such neighboring tiles in a filled board, then any other neighbor not in that list
+-- must be of the opposite tile type
+neighborsAlreadyFull : ∀ {bounds} (grid : Board Tile bounds) grid′ coords (other : Neighbor coords) guess
+  (every : Enumeration ((guess ⚐✓_) Neighboring coords on grid′)) →
+  (neighbors : List (Neighbor coords)) →
+  (∀ {neighbor} (ix₁ ix₂ : neighbor ∈ neighbors) → ix₁ ≡ ix₂) →
+  All (λ neighbor → grid [ proj₁ neighbor ]↝✓ guess) neighbors →
+  All (λ neighbor → proj₁ other ≢ proj₁ neighbor) neighbors →
+  grid ↝⊞ grid′ → grid′ ✓ →
+  List.length neighbors ≡ List.length (Enumeration.list every) →
+    invert⚐ guess ⚐✓ lookup (proj₁ other) grid′
+neighborsAlreadyFull grid grid′ coords other guess every neighbors neighbors-unique neighbors↝✓guess other∉neighbors grid↝⊞grid′ grid′✓ lengths-agree = ¬-⚐✓-invert ¬other↦guess where
   -- to see that `neighbors` is the complete list of `coords`' neighbors of type `guess`, we first need to inductively verify✓ that `guess` indeed holds for them.
-  neighbors★⇒✓ : ∀ {neighbors : List (Neighbor coords)} → All (λ elem → grid [ proj₁ elem ]↝★ guess) neighbors → List ((guess ⚐✓_) Neighboring coords on grid′)
+  neighbors★⇒✓ : ∀ {neighbors : List (Neighbor coords)} → All (λ elem → grid [ proj₁ elem ]↝✓ guess) neighbors → List ((guess ⚐✓_) Neighboring coords on grid′)
   neighbors★⇒✓ {_} [] = []
-  neighbors★⇒✓ {neighbor ∷ _} (neighbor-valid★ ∷ neighbors-valid★) = (neighbor , ★⇒✓ _ _ neighbor-valid★ _ grid↝⊞grid′ grid′✓) ∷ neighbors★⇒✓ neighbors-valid★
+  neighbors★⇒✓ {neighbor ∷ _} (neighbor↝✓guess ∷ neighbors↝✓guess) = (neighbor , neighbor↝✓guess grid′ grid↝⊞grid′ grid′✓) ∷ neighbors★⇒✓ neighbors↝✓guess
 
   neighbors✓ : List (Σ[ neighbor ∈ Neighbor coords ] (guess ⚐✓ lookup (proj₁ neighbor) grid′))
-  neighbors✓ = neighbors★⇒✓ (Neighbors★.guess-valid★ neighbors★)
+  neighbors✓ = neighbors★⇒✓ neighbors↝✓guess
 
   -- `neighbors✓` has unique entries since `neighbors` does. we need a couple helpers first to see the connection, though
   ∈-neighbors★⇒✓⁻ : ∀ {neighbors neighbor neighbor✓} neighbors-valid★ →
@@ -204,7 +147,7 @@ Neighbors★-alreadyFull grid grid′ coords other guess neighbors★ every grid
   ∈-neighbors★⇒✓⁻-injective (_ ∷ neighbors-valid★) (there ix₁) (there ix₂) ★⇒✓⁻₁≡★⇒✓⁻₂ = cong there (∈-neighbors★⇒✓⁻-injective neighbors-valid★ ix₁ ix₂ (there-injective ★⇒✓⁻₁≡★⇒✓⁻₂))
 
   neighbors✓-unique : ∀ {neighbor✓} (ix₁ ix₂ : neighbor✓ ∈ neighbors✓) → ix₁ ≡ ix₂
-  neighbors✓-unique ix₁ ix₂ = ∈-neighbors★⇒✓⁻-injective _ ix₁ ix₂ (Neighbors★.unique neighbors★ (∈-neighbors★⇒✓⁻ _ ix₁) (∈-neighbors★⇒✓⁻ _ ix₂))
+  neighbors✓-unique ix₁ ix₂ = ∈-neighbors★⇒✓⁻-injective _ ix₁ ix₂ (neighbors-unique (∈-neighbors★⇒✓⁻ _ ix₁) (∈-neighbors★⇒✓⁻ _ ix₂))
 
   -- `neighbors★⇒✓` preserves length so `neighbor✓` is the same length as `Neighbors★.list neighbors★`
   length-neighbors★⇒✓ : ∀ {neighbors} neighbors-valid★ → List.length (neighbors★⇒✓ {neighbors} neighbors-valid★) ≡ List.length neighbors
@@ -215,12 +158,66 @@ Neighbors★-alreadyFull grid grid′ coords other guess neighbors★ every grid
   neighbors✓-complete : ∀ neighbor✓ → neighbor✓ ∈ neighbors✓
   neighbors✓-complete = Enum.long-list-complete every neighbors✓ neighbors✓-unique (begin
     List.length neighbors✓
-      ≡⟨ length-neighbors★⇒✓ (Neighbors★.guess-valid★ neighbors★) ⟩
-    List.length (Neighbors★.list neighbors★)
+      ≡⟨ length-neighbors★⇒✓ neighbors↝✓guess ⟩
+    List.length neighbors
       ≡⟨ lengths-agree ⟩
     List.length (Enumeration.list every) ∎)
     where open ≡-Reasoning
 
   -- `other` is not of type `guess`: it isn't in `neighbors`, so it isn't in `neighbors✓`, which is complete
   ¬other↦guess : ¬ guess ⚐✓ lookup (proj₁ other) grid′
-  ¬other↦guess other↦guess = All¬⇒¬Any (Neighbors★.exclusion neighbors★) (Any.map (cong proj₁) (∈-neighbors★⇒✓⁻ _ (neighbors✓-complete (other , other↦guess))))
+  ¬other↦guess other↦guess = All¬⇒¬Any other∉neighbors (Any.map (cong proj₁) (∈-neighbors★⇒✓⁻ _ (neighbors✓-complete (other , other↦guess))))
+
+-- from this we get that, given a safe tile with as many adjacent mines as it can have, its other neighbors must be safe
+otherNeighborIsSafe : ∀ {bounds} (grid : Board Tile bounds) neighborMineCount otherNeighbor
+  (safeCoords : (known (safe neighborMineCount) ≡_) Neighboring otherNeighbor on grid)
+  (neighborMines : List (Neighbor (proj₁ (proj₁ safeCoords)))) →
+  (∀ {neighbor} (ix₁ ix₂ : neighbor ∈ neighborMines) → ix₁ ≡ ix₂) →
+  All (λ neighbor → grid [ proj₁ neighbor ]↝✓ mine⚐) neighborMines →
+  All (λ neighbor → otherNeighbor ≢ proj₁ neighbor) neighborMines →
+  List.length neighborMines ≡ neighborMineCount →
+    grid [ otherNeighbor ]↝✓ safe⚐
+otherNeighborIsSafe grid neighborMineCount otherNeighbor ((safeCoords , safeCoords-Adj) , safeCoords-safe) neighborMines neighborMines-unique neighborMines↝✓mine⚐ otherNeighbor∉neighborMines neighborMines-length grid′ grid↝⊞grid′ grid′✓
+  with known-safe-✓ safeCoords grid grid′ (sym safeCoords-safe) grid↝⊞grid′ grid′✓
+...  | mineEnumeration , neighborMineCount≡enumLength =
+  neighborsAlreadyFull grid grid′ safeCoords (otherNeighbor , Coords.Adjacent-sym otherNeighbor safeCoords safeCoords-Adj) mine⚐ mineEnumeration neighborMines neighborMines-unique neighborMines↝✓mine⚐ otherNeighbor∉neighborMines grid↝⊞grid′ grid′✓ enoughMines
+  where
+    enoughMines : List.length neighborMines ≡ List.length (Enumeration.list mineEnumeration)
+    enoughMines = trans neighborMines-length neighborMineCount≡enumLength
+
+-- and likewise, given a safe tile with as many adjacent safe tiles as it can have, its other niehgbors must be mines
+otherNeighborIsMine : ∀ {bounds} (grid : Board Tile bounds) neighborMineCount otherNeighbor
+  (safeCoords : (known (safe neighborMineCount) ≡_) Neighboring otherNeighbor on grid)
+  (neighborSafes : List (Neighbor (proj₁ (proj₁ safeCoords)))) →
+  (∀ {neighbor} (ix₁ ix₂ : neighbor ∈ neighborSafes) → ix₁ ≡ ix₂) →
+  All (λ neighbor → grid [ proj₁ neighbor ]↝✓ safe⚐) neighborSafes →
+  All (λ neighbor → otherNeighbor ≢ proj₁ neighbor) neighborSafes →
+  List.length neighborSafes + neighborMineCount ≡ List.length (Enumeration.list (neighbors (proj₁ (proj₁ safeCoords)))) →
+    grid [ otherNeighbor ]↝✓ mine⚐
+otherNeighborIsMine grid neighborMineCount otherNeighbor ((safeCoords , safeCoords-Adj) , safeCoords-safe) neighborSafes neighborSafes-unique neighborSafes↝✓safe⚐ otherNeighbor∉neighborSafes neighborSafes-length grid′ grid↝⊞grid′ grid′✓
+  with known-safe-✓ safeCoords grid grid′ (sym safeCoords-safe) grid↝⊞grid′ grid′✓
+...  | mineEnumeration , neighborMineCount≡enumLength =
+  neighborsAlreadyFull grid grid′ safeCoords (otherNeighbor , Coords.Adjacent-sym otherNeighbor safeCoords safeCoords-Adj) safe⚐ safeEnumeration neighborSafes neighborSafes-unique neighborSafes↝✓safe⚐ otherNeighbor∉neighborSafes grid↝⊞grid′ grid′✓ enoughSafes
+  where
+    -- since the number of safe neighbors a tile has is defined by how many are left when you take away the mines,
+    -- we need to do a bit of arithmetic--splitting all of safeNeighbor's neighbors into safe tiles and mines--to see that our list really has all of them
+    splitNeighbors : Enumeration ((safe⚐ ⚐✓_) Neighboring safeCoords on grid′) × Enumeration ((mine⚐ ⚐✓_) Neighboring safeCoords on grid′)
+    splitNeighbors = Enum.partition ⚐✓-irrelevance ⚐✓-irrelevance (tileType ∘ flip lookup grid′ ∘ proj₁) guessesDisjoint (neighbors safeCoords)
+
+    safeEnumeration : Enumeration ((safe⚐ ⚐✓_) Neighboring safeCoords on grid′)
+    safeEnumeration = proj₁ splitNeighbors
+
+    enoughSafes : List.length neighborSafes ≡ List.length (Enumeration.list safeEnumeration)
+    enoughSafes = +-cancelʳ-≡ (List.length neighborSafes) (List.length (Enumeration.list safeEnumeration)) length-splitNeighbors where
+      open ≡-Reasoning
+      length-splitNeighbors : List.length neighborSafes + neighborMineCount ≡ List.length (Enumeration.list safeEnumeration) + neighborMineCount
+      length-splitNeighbors = begin
+        List.length neighborSafes + neighborMineCount
+          ≡⟨ neighborSafes-length ⟩
+        List.length (Enumeration.list (neighbors safeCoords))
+           ≡⟨ Enum.length-partition ⚐✓-irrelevance ⚐✓-irrelevance (tileType ∘ flip lookup grid′ ∘ proj₁) guessesDisjoint (neighbors safeCoords) ⟩
+        List.length (Enumeration.list safeEnumeration) + List.length (Enumeration.list (proj₂ splitNeighbors))
+          ≡⟨ cong (List.length (Enumeration.list safeEnumeration) +_) (Enum.enumeration-length-uniform (proj₂ splitNeighbors) mineEnumeration) ⟩
+        List.length (Enumeration.list safeEnumeration) + List.length (Enumeration.list mineEnumeration)
+          ≡⟨ cong (List.length (Enumeration.list safeEnumeration) +_) (sym neighborMineCount≡enumLength) ⟩
+        List.length (Enumeration.list safeEnumeration) + neighborMineCount ∎
