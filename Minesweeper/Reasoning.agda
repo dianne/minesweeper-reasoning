@@ -100,9 +100,7 @@ Neighbors★-alreadyFull : ∀ {bounds} (grid : Board Tile bounds) grid′ coord
 
 -- when the tile we're looking at is already known, it will stay the same in all ways of completing the board.
 -- so as long as our guess agrees with its current state, it's valid
-★⇒✓ grid coords (known★ tile guess coords↦tile guess⚐✓tile) grid′ grid↝⊞grid′ grid′✓ with grid↝⊞grid′ coords
-...                                                                                     | tile↝▣tile′   with lookup coords grid | lookup coords grid′
-★⇒✓ grid coords (known★ tile guess refl        guess⚐✓tile) grid′ grid↝⊞grid′ grid′✓    | ↝▣known .tile    | .(known tile)      | .tile = guess⚐✓tile
+★⇒✓ grid coords (known★ tile guess coords↦tile guess⚐✓tile) grid′ grid↝⊞grid′ grid′✓ = subst (guess ⚐✓_) (known-↝▣⇒≡ coords↦tile (grid↝⊞grid′ coords)) guess⚐✓tile
 
 -- for a proof by cases★ on the final board, only the case that applies to our actual final board `grid′` applies
 ★⇒✓ grid coords (cases★ testCoords guess cases) grid′ grid↝⊞grid′ grid′✓ = ★⇒✓ _ _ (cases (lookup testCoords grid′)) grid′ gridWithTest↝⊞grid′ grid′✓ where
@@ -137,17 +135,14 @@ Neighbors★-alreadyFull : ∀ {bounds} (grid : Board Tile bounds) grid′ coord
   mineCountsConsistent                      (_ ∷ neighbors↝★guesses) | no ¬mine⚐✓tile | ⚐✓safe .n      | .(safe n)             | ⚐✓safe n = mineCountsConsistent neighbors↝★guesses
 
   testCoords-mineCount✓ : supposedMineCount ≡ List.length (Enumeration.list (neighboringMines grid′ testCoords))
-  testCoords-mineCount✓ with grid↝⊞grid′ testCoords | grid′✓ testCoords
-  ...                      | tile↝▣tile             | testCoords✓ rewrite testCoords-mineCount with lookup testCoords grid′
-  testCoords-mineCount✓    | ↝▣known _              | mines′ , supposedMineCount≡length-mines′ | _ =
+  testCoords-mineCount✓ with known-safe-✓ testCoords grid grid′ testCoords-mineCount grid↝⊞grid′ grid′✓
+  ... | mines′ , supposedMineCount≡length-mines′ =
     trans supposedMineCount≡length-mines′ (Enum.enumeration-length-uniform mines′ (neighboringMines grid′ testCoords))
 
 -- a tile being safe★ means it has an adjacent safe tile with as many adjacent mines as it can have, so by `Neighbors★-alreadyFull` it must be safe
 ★⇒✓ grid coords (safe★ neighborMineCount ((safeNeighbor , safeNeighbor-Adj) , safeNeighbor-safe) neighborMines neighborMines-length) grid′ grid↝⊞grid′ grid′✓
-  with grid↝⊞grid′ safeNeighbor | grid′✓ safeNeighbor
-...  | safe↝⊞safe               | safeNeighbor✓                               with lookup safeNeighbor grid | lookup safeNeighbor grid′
-★⇒✓ grid coords (safe★ neighborMineCount ((safeNeighbor , safeNeighbor-Adj) , refl) neighborMines neighborMines-length) grid′ grid↝⊞grid′ grid′✓
-     | ↝▣known .(safe _)        | mineEnumeration , neighborMineCount≡enumLength | .(known (safe _))        | .(safe _) =
+  with known-safe-✓ safeNeighbor grid grid′ (sym safeNeighbor-safe) grid↝⊞grid′ grid′✓
+... | mineEnumeration , neighborMineCount≡enumLength =
   Neighbors★-alreadyFull grid grid′ safeNeighbor (coords , Coords.Adjacent-sym coords safeNeighbor safeNeighbor-Adj) mine⚐ neighborMines mineEnumeration grid↝⊞grid′ grid′✓ enoughMines
   where
     enoughMines : List.length (Neighbors★.list neighborMines) ≡ List.length (Enumeration.list mineEnumeration)
@@ -155,10 +150,8 @@ Neighbors★-alreadyFull : ∀ {bounds} (grid : Board Tile bounds) grid′ coord
 
 -- a tile being a mine★ means it has an adjacent safe tile with as many adjacent safe tiles as it can have, so by `Neighbors★-alreadyFull` it must be a mine
 ★⇒✓ grid coords (mine★ neighborMineCount ((safeNeighbor , safeNeighbor-Adj) , safeNeighbor-safe) neighborSafes neighborSafes-length) grid′ grid↝⊞grid′ grid′✓
-  with grid↝⊞grid′ safeNeighbor | grid′✓ safeNeighbor
-...  | safe↝⊞safe               | safeNeighbor✓                               with lookup safeNeighbor grid | lookup safeNeighbor grid′
-★⇒✓ grid coords (mine★ neighborMineCount ((safeNeighbor , safeNeighbor-Adj) , refl) neighborSafes neighborSafes-length) grid′ grid↝⊞grid′ grid′✓
-     | ↝▣known .(safe _)        | mineEnumeration , neighborMineCount≡enumLength | .(known (safe _))        | .(safe _) =
+  with known-safe-✓ safeNeighbor grid grid′ (sym safeNeighbor-safe) grid↝⊞grid′ grid′✓
+... | mineEnumeration , neighborMineCount≡enumLength =
   Neighbors★-alreadyFull grid grid′ safeNeighbor (coords , Coords.Adjacent-sym coords safeNeighbor safeNeighbor-Adj) safe⚐ neighborSafes safeEnumeration grid↝⊞grid′ grid′✓ enoughSafes
   where
     -- since the number of safe neighbors a tile has is defined by how many are left when you take away the mines,

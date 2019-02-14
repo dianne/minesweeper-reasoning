@@ -1,10 +1,12 @@
 -- a hopefully-self-evident description of valid minesweeper moves
+-- and several lemmas about it
 
 module Minesweeper.Moves where
 
 open import Data.Empty
 open import Data.Product
 open import Data.Sum
+import      Data.List as List
 open import Data.Vec as Vec using (Vec; []; _∷_; _++_)
 open import Data.Vec.Relation.Unary.Any as Any using (Any; any)
 import      Data.Vec.Relation.Unary.Any.Properties as AnyProp
@@ -24,6 +26,7 @@ open import Induction.WellFounded as WF
 open import Induction.Nat using (<-wellFounded)
 open import Function
 
+open import Minesweeper.Enumeration using (Enumeration)
 open import Minesweeper.Coords as Coords
 open import Minesweeper.Board
 open import Minesweeper.Rules
@@ -73,10 +76,23 @@ invert⚐ safe⚐ = mine⚐
 ¬-⚐✓-invert {safe⚐} {mine}   ¬guess⚐✓tile = ⚐✓mine
 ¬-⚐✓-invert {safe⚐} {safe n} ¬guess⚐✓tile = ⊥-elim (¬guess⚐✓tile (⚐✓safe n))
 
-
 unknown? : Decidable₁ (unknown ≡_)
 unknown? (known s) = no λ ()
 unknown? unknown   = yes refl
+
+-- if a tile is already known, it can only be filled that way.
+-- usually when we know a tile is known it's from a separate equality such as `known tile ≡ lookup coords grid`,
+-- so this is specialized to account for that case
+known-↝▣⇒≡ : ∀ {tile knowntile knowntile′} → tile ≡ known knowntile → tile ↝▣ knowntile′ → knowntile ≡ knowntile′
+known-↝▣⇒≡ refl (↝▣known _) = refl
+
+-- if a tile is specifically known to be safe with `n` adjacent mines on a consistent board `grid′`, we can go further:
+-- `grid′ ✓` gives us an Enumeration of that tile's neighboring mines with exactly `n` members.
+-- that is, on `grid′` it indeed does have `n` adjacent mines
+known-safe-✓ : ∀ {bounds} (coords : Coords bounds) grid grid′ {n} → lookup coords grid ≡ known (safe n) → grid ↝⊞ grid′ → grid′ ✓ →
+  Σ[ neighboringMines ∈ Enumeration ((mine⚐ ⚐✓_) Neighboring coords on grid′) ] n ≡ List.length (Enumeration.list neighboringMines)
+known-safe-✓ coords grid grid′ coords↦safe grid↝⊞grid′ grid′✓ with grid′✓ coords
+...                                                              | grid′[coords]✓ rewrite sym (known-↝▣⇒≡ coords↦safe (grid↝⊞grid′ coords)) = grid′[coords]✓
 
 
 -- specificity: a partially filled board is more specific than another if it agrees on all known tiles
