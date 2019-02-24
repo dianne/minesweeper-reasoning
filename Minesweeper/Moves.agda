@@ -142,21 +142,21 @@ countUnknowns-strict-monotone filled>holey = uncurry countUnknowns-strict-monoto
 
   countUnknowns-strict-monotone′ : ∀ {bounds} {filled holey : Board Tile bounds} coords → lookup coords filled ≻ lookup coords holey →
     VecPointwise.Pointwise (VecPointwise.Pointwise _≽_) filled holey → countUnknowns filled < countUnknowns holey
-  countUnknowns-strict-monotone′ {_} {ts ∷ tss} {us ∷ uss} (x , zero) ti≻ui (ts≽us ∷ tss≽uss) = begin
-    suc (countUnknowns (ts ∷ tss))                                     ≡⟨ cong suc (count-++ ts (Vec.concat tss)) ⟩
+  countUnknowns-strict-monotone′ {_} {ts ∷ tss} {us ∷ uss} (x , zero) ti≻ui (ts≽us ∷ tss≽uss) = begin-strict
+    countUnknowns (ts ∷ tss)                                    ≡⟨ count-++ ts (Vec.concat tss) ⟩
 
-    suc (Vec.count unknown? ts + Vec.count unknown? (Vec.concat tss))  ≤⟨ ℕProp.+-mono-<-≤ (countUnknowns♭-strict-monotone x ti≻ui ts≽us)
-                                                                                           (countUnknowns♭-monotone (VecPointwise.concat⁺ tss≽uss)) ⟩
-    Vec.count unknown? us + Vec.count unknown? (Vec.concat uss)        ≡⟨ sym (count-++ us (Vec.concat uss)) ⟩
+    Vec.count unknown? ts + Vec.count unknown? (Vec.concat tss) <⟨ ℕProp.+-mono-<-≤ (countUnknowns♭-strict-monotone x ti≻ui ts≽us)
+                                                                                    (countUnknowns♭-monotone (VecPointwise.concat⁺ tss≽uss)) ⟩
+    Vec.count unknown? us + Vec.count unknown? (Vec.concat uss) ≡˘⟨ count-++ us (Vec.concat uss) ⟩
 
     countUnknowns (us ∷ uss) ∎
     where open ℕProp.≤-Reasoning
-  countUnknowns-strict-monotone′ {_} {ts ∷ tss} {us ∷ uss} (x , suc y) ti≻ui (ts≽us ∷ tss≽uss) = begin
-    suc (countUnknowns (ts ∷ tss))                                     ≡⟨ cong suc (count-++ ts (Vec.concat tss)) ⟩
+  countUnknowns-strict-monotone′ {_} {ts ∷ tss} {us ∷ uss} (x , suc y) ti≻ui (ts≽us ∷ tss≽uss) = begin-strict
+    countUnknowns (ts ∷ tss)                                    ≡⟨ count-++ ts (Vec.concat tss) ⟩
 
-    suc (Vec.count unknown? ts + Vec.count unknown? (Vec.concat tss))  ≤⟨ ℕProp.+-mono-≤-< (countUnknowns♭-monotone ts≽us)
-                                                                                           (countUnknowns-strict-monotone′ (x , y) ti≻ui tss≽uss) ⟩
-    Vec.count unknown? us + Vec.count unknown? (Vec.concat uss)        ≡⟨ sym (count-++ us (Vec.concat uss)) ⟩
+    Vec.count unknown? ts + Vec.count unknown? (Vec.concat tss) <⟨ ℕProp.+-mono-≤-< (countUnknowns♭-monotone ts≽us)
+                                                                                    (countUnknowns-strict-monotone′ (x , y) ti≻ui tss≽uss) ⟩
+    Vec.count unknown? us + Vec.count unknown? (Vec.concat uss) ≡˘⟨ count-++ us (Vec.concat uss) ⟩
 
     countUnknowns (us ∷ uss) ∎
     where open ℕProp.≤-Reasoning
