@@ -6,7 +6,6 @@ module Minesweeper.Moves where
 open import Data.Empty
 open import Data.Product
 open import Data.Sum
-import      Data.List as List
 open import Data.Vec as Vec using (Vec; []; _∷_; _++_)
 open import Data.Vec.Relation.Unary.Any as Any using (Any; any)
 import      Data.Vec.Relation.Unary.Any.Properties as AnyProp
@@ -90,7 +89,7 @@ known-↝▣⇒≡ refl (↝▣known _) = refl
 -- `grid′ ✓` gives us an Enumeration of that tile's neighboring mines with exactly `n` members.
 -- that is, on `grid′` it indeed does have `n` adjacent mines
 known-safe-✓ : ∀ {bounds} (coords : Coords bounds) grid grid′ {n} → lookup coords grid ≡ known (safe n) → grid ↝⊞ grid′ → grid′ ✓ →
-  Σ[ neighboringMines ∈ Enumeration ((mine⚐ ⚐✓_) Neighboring coords on grid′) ] n ≡ List.length (Enumeration.list neighboringMines)
+  Σ[ neighboringMines ∈ Enumeration ((mine⚐ ⚐✓_) Neighboring coords on grid′) ] n ≡ Enumeration.cardinality neighboringMines
 known-safe-✓ coords grid grid′ coords↦safe grid↝⊞grid′ grid′✓ with grid′✓ coords
 ...                                                              | grid′[coords]✓ rewrite sym (known-↝▣⇒≡ coords↦safe (grid↝⊞grid′ coords)) = grid′[coords]✓
 

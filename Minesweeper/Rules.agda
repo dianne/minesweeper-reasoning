@@ -35,7 +35,7 @@ data _⚐✓_ : Guess → KnownTile → Set where
 _[_]✓ : ∀ {bounds} → Board KnownTile bounds → Coords bounds → Set
 _[_]✓ {bounds} grid coords with lookup coords grid
 ... | mine = ⊤
-... | safe n = Σ[ neighboringMines ∈ Enumeration ((mine⚐ ⚐✓_) Neighboring coords on grid) ] n ≡ length (Enumeration.list neighboringMines)
+... | safe n = Σ[ neighboringMines ∈ Enumeration ((mine⚐ ⚐✓_) Neighboring coords on grid) ] n ≡ Enumeration.cardinality neighboringMines
 
 -- a board is good if all positions on it are good
 _✓ : ∀ {bounds} → Board KnownTile bounds → Set
@@ -48,17 +48,6 @@ mine⚐ ⚐✓? safe _ = no λ { () }
 safe⚐ ⚐✓? mine   = no λ { () }
 safe⚐ ⚐✓? safe n = yes (⚐✓safe n)
 
-tileType : ∀ tile → (safe⚐ ⚐✓ tile) ⊎ (mine⚐ ⚐✓ tile)
-tileType mine     = inj₂ ⚐✓mine
-tileType (safe n) = inj₁ (⚐✓safe n)
-
-guessesDisjoint : ∀ {tile} → safe⚐ ⚐✓ tile → ¬ mine⚐ ⚐✓ tile
-guessesDisjoint () ⚐✓mine
-
-⚐✓-irrelevance : Irrelevant₂ _⚐✓_
-⚐✓-irrelevance ⚐✓mine     ⚐✓mine      = refl
-⚐✓-irrelevance (⚐✓safe n) (⚐✓safe .n) = refl
-
 _≟⚐_ : Decidable₂ (_≡_ {A = Guess})
 mine⚐ ≟⚐ mine⚐ = yes refl
 mine⚐ ≟⚐ safe⚐ = no λ ()
@@ -66,19 +55,19 @@ safe⚐ ≟⚐ mine⚐ = no λ ()
 safe⚐ ≟⚐ safe⚐ = yes refl
 
 neighboringMines : ∀ {bounds} (grid : Board KnownTile bounds) (coords : Coords bounds) → Enumeration ((mine⚐ ⚐✓_) Neighboring coords on grid)
-neighboringMines grid coords = Enum.filter ⚐✓-irrelevance (λ { (neighbor , _) → mine⚐ ⚐✓? (lookup neighbor grid) }) (neighbors coords)
+neighboringMines = filterNeighbors (mine⚐ ⚐✓?_)
 
 _[_]✓? : ∀ {bounds} → Decidable₂ (_[_]✓ {bounds})
 grid [ coords ]✓? with lookup coords grid
 ... | mine = yes tt
-... | safe n with n ℕ.≟ length (Enumeration.list (neighboringMines grid coords))
+... | safe n with n ℕ.≟ Enumeration.cardinality (neighboringMines grid coords)
 ...             | yes n≡len = yes (neighboringMines grid coords , n≡len)
 ...             | no  n≢len = no  λ { (mines′ , n≡len) → n≢len (begin
   n
     ≡⟨ n≡len ⟩
-  length (Enumeration.list mines′)
-    ≡⟨ Enum.enumeration-length-uniform mines′ (neighboringMines grid coords) ⟩
-  length (Enumeration.list (neighboringMines grid coords)) ∎) }
+  Enumeration.cardinality mines′
+    ≡⟨ Enum.cardinality-≡ mines′ (neighboringMines grid coords) ⟩
+  Enumeration.cardinality (neighboringMines grid coords) ∎) }
   where open ≡-Reasoning
 
 _✓? : ∀ {bounds} → Decidable₁ (_✓ {bounds})

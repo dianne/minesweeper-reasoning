@@ -9,10 +9,13 @@ open import Data.Product
 open import Data.Product.Relation.Pointwise.NonDependent using (≡×≡⇒≡)
 open import Function
 open import Relation.Nullary
-open import Relation.Binary
+open import Relation.Unary  using  (Decidable)
+open import Relation.Binary hiding (Decidable)
 open import Relation.Binary.PropositionalEquality
+import Relation.Binary.Construct.On as On
 open ≡-Reasoning
 
+open import Minesweeper.Enumeration as Enum using (Enumeration)
 open import Minesweeper.Coords hiding (_≟_)
 
 Board : Set → Bounds → Set
@@ -24,8 +27,18 @@ lookup (x , y) grid = Vec.lookup x (Vec.lookup y grid)
 _[_]≔_ : ∀ {A bounds} → Board A bounds → Coords bounds → A → Board A bounds
 grid [ (x , y) ]≔ value = Vec.updateAt y (Vec._[ x ]≔ value) grid
 
-_Neighboring_on_ : ∀ {A bounds} → (A → Set) → Coords bounds → Board A bounds → Set
-P Neighboring coords on grid = Σ[ neighbor ∈ Neighbor coords ] P (lookup (proj₁ neighbor) grid)
+-- `P Neighboring coords on grid` are the adjacent tiles to `coords` that satisfy the predicate `P`:
+-- a `Neighbor coords` paired with a proof that its coordinates, when looked up on `grid`, satisfy `P`.
+-- we don't compare the proofs for equality, so we define their setoid equality as equality on the Neighbors
+_Neighboring_on_ : ∀ {p A bounds} → (A → Set p) → Coords bounds → Board A bounds → Setoid _ _
+P Neighboring coords on grid = On.setoid
+  {B = Σ[ neighbor ∈ Setoid.Carrier (Neighbor coords) ] P (lookup (proj₁ neighbor) grid)}
+  (Neighbor coords)
+  proj₁
+
+-- in order to get the neighbors of some coords satisfying P, we can filter all of its neighbors to just the ones satisfying P
+filterNeighbors : ∀ {p A bounds} {P : A → Set p} (P? : Decidable P) (grid : Board A bounds) (coords : Coords bounds) → Enumeration (P Neighboring coords on grid)
+filterNeighbors {P = P} P? grid coords = Enum.filter (P? ∘ flip lookup grid ∘ proj₁) (subst (P ∘ flip lookup grid) ∘ ≡×≡⇒≡) (neighbors coords)
 
 
 Pointwise : ∀ {ℓ A B} (_∼_ : REL A B ℓ) {bounds} → REL (Board A bounds) (Board B bounds) _

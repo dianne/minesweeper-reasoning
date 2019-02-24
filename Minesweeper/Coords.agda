@@ -4,15 +4,15 @@ open import Data.Nat renaming (_≟_ to _ℕ≟_)
 open import Data.Integer using (∣_∣; _⊖_)
 open import Data.Integer.Properties using (∣m⊖n∣≡∣n⊖m∣)
 open import Data.Product
-open import Data.Product.Relation.Pointwise.NonDependent using (≡?×≡?⇒≡?)
+open import Data.Product.Relation.Pointwise.NonDependent using (×-setoid; ≡×≡⇒≡; ≡?×≡?⇒≡?)
 open import Data.Fin renaming (_≟_ to _Fin≟_)
 import      Data.Fin.Properties as Fin
 open import Relation.Nullary
 import      Relation.Nullary.Decidable as Dec
-open import Relation.Unary  using () renaming (Decidable to Decidable₁)
-open import Relation.Binary using () renaming (Decidable to Decidable₂)
+open import Relation.Unary  using ()       renaming (Decidable to Decidable₁)
+open import Relation.Binary using (Setoid) renaming (Decidable to Decidable₂)
 open import Relation.Binary.PropositionalEquality
-open import Relation.Binary.PropositionalEquality.WithK
+import      Relation.Binary.Construct.On as On
 open import Function
 
 open import Minesweeper.Enumeration as Enum using (Enumeration)
@@ -29,11 +29,16 @@ Adjacent (x₁ , y₁) (x₂ , y₂) = ∣ toℕ x₁ ⊖ toℕ x₂ ∣ ⊔ ∣
 adjacent? : ∀ {bounds} → Decidable₂ (Adjacent {bounds})
 adjacent? (x₁ , y₁) (x₂ , y₂) = ∣ toℕ x₁ ⊖ toℕ x₂ ∣ ⊔ ∣ toℕ y₁ ⊖ toℕ y₂ ∣ ℕ≟ 1
 
-Neighbor : ∀ {bounds} (coords : Coords bounds) → Set
-Neighbor coords = Σ[ neighbor ∈ _ ] Adjacent coords neighbor
+-- a Neighbor to `coords` is an adjacent tile: another coordinate pair and a proof that it's adjacent to `coords`.
+-- we don't compare the proofs for equality, so we define their setoid equality as equality on the coordinates
+Neighbor : ∀ {bounds} (coords : Coords bounds) → Setoid _ _
+Neighbor {w , h} coords = On.setoid {B = ∃ (Adjacent coords)} (×-setoid (Fin.setoid w) (Fin.setoid h)) proj₁
 
 neighbors : ∀ {bounds} (coords : Coords bounds) → Enumeration (Neighbor coords)
-neighbors {w , h} coords = Enum.filter ≡-irrelevant (adjacent? coords) (Enum.allFin w Enum.⊗ Enum.allFin h)
+neighbors {w , h} coords = Enum.filter (adjacent? coords) (subst (Adjacent coords) ∘ ≡×≡⇒≡) (Enum.allFin w Enum.⊗ Enum.allFin h)
+
+neighborCount : ∀ {bounds} (coords : Coords bounds) → ℕ
+neighborCount = Enumeration.cardinality ∘ neighbors
 
 
 Adjacent-sym : ∀ {bounds} (coords₁ coords₂ : Coords bounds) → Adjacent coords₁ coords₂ → Adjacent coords₂ coords₁
@@ -45,8 +50,6 @@ Adjacent-sym (x₁ , y₁) (x₂ , y₂) coords₁-coords₂-Adj = begin
   1 ∎
   where open ≡-Reasoning
 
-neighbor-sym : ∀ {bounds} {coords : Coords bounds} (neighbor : Neighbor coords) → Neighbor (proj₁ neighbor)
-neighbor-sym {coords = coords} (neighbor , adjacency) = coords , Adjacent-sym coords neighbor adjacency
 
 
 _≟_ : ∀ {bounds} → Decidable₂ (_≡_ {A = Coords bounds})
