@@ -7,6 +7,7 @@ open import Data.Empty
 open import Data.Product
 open import Data.Sum
 open import Data.Vec as Vec using (Vec; []; _∷_; _++_)
+import      Data.Vec.Properties as VecProp
 open import Data.Vec.Relation.Unary.Any as Any using (Any; any)
 import      Data.Vec.Relation.Unary.Any.Properties as AnyProp
 open import Data.Vec.Relation.Binary.Pointwise.Inductive as VecPointwise using ([]; _∷_)
@@ -209,3 +210,24 @@ holey⊎filled grid with any (any unknown?) grid
 
 ≥-↝⊞-trans : ∀ {bounds} {filled holey : Board Tile bounds} → filled ≥ holey → ∀ {fullyFilled} → filled ↝⊞ fullyFilled → holey ↝⊞ fullyFilled
 ≥-↝⊞-trans filled≥holey filled↝⊞fullyFilled coords = ≽-↝▣-trans (filled≥holey coords) (filled↝⊞fullyFilled coords)
+
+
+-- if we know all the tiles of a board, we can get a board of KnownTiles from it in order to
+-- check it against the rules for filled boards in Minesweeper.Rules
+unwrap : ∀ {bounds} {grid : Board Tile bounds} → (∀ coords → ∃ λ tile → lookup coords grid ≡ known tile) → Board KnownTile bounds
+unwrap grid-filled = Vec.tabulate (λ y → Vec.tabulate (λ x → proj₁ (grid-filled (x , y))))
+
+lookup∘unwrap : ∀ {bounds} {grid} grid-filled coords → lookup coords (unwrap {bounds} {grid} grid-filled) ≡ proj₁ (grid-filled coords)
+lookup∘unwrap {grid = grid} grid-filled coords = begin
+  lookup coords (unwrap grid-filled)
+    ≡⟨ cong (Vec.lookup (proj₁ coords)) (VecProp.lookup∘tabulate (λ y → Vec.tabulate (λ x → proj₁ (grid-filled (x , y)))) (proj₂ coords)) ⟩
+  Vec.lookup (proj₁ coords) (Vec.tabulate (λ x → proj₁ (grid-filled (x , proj₂ coords))))
+    ≡⟨ VecProp.lookup∘tabulate (λ x → proj₁ (grid-filled (x , proj₂ coords))) (proj₁ coords) ⟩
+  proj₁ (grid-filled coords) ∎
+  where open ≡-Reasoning
+
+↝⊞-unwrap : ∀ {bounds} {grid} grid-filled →
+  grid ↝⊞ unwrap {bounds} {grid} grid-filled
+↝⊞-unwrap grid-filled coords
+  rewrite proj₂ (grid-filled coords)
+        | lookup∘unwrap grid-filled coords = ↝▣known (proj₁ (grid-filled coords))

@@ -54,6 +54,14 @@ mine⚐ ≟⚐ safe⚐ = no λ ()
 safe⚐ ≟⚐ mine⚐ = no λ ()
 safe⚐ ≟⚐ safe⚐ = yes refl
 
+tileType : KnownTile → Guess
+tileType mine     = mine⚐
+tileType (safe _) = safe⚐
+
+tileType-⚐✓ : ∀ tile → tileType tile ⚐✓ tile
+tileType-⚐✓ mine     = ⚐✓mine
+tileType-⚐✓ (safe n) = ⚐✓safe n
+
 neighboringMines : ∀ {bounds} (grid : Board KnownTile bounds) (coords : Coords bounds) → Enumeration ((mine⚐ ⚐✓_) Neighboring coords on grid)
 neighboringMines = filterNeighbors (mine⚐ ⚐✓?_)
 

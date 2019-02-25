@@ -6,11 +6,13 @@ module Minesweeper.Reasoning where
 open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
+open import Data.Unit
 open import Data.Empty
 open import Data.Product as Σ
 open import Data.Product.Properties
 open import Data.Product.Relation.Pointwise.NonDependent using (≡×≡⇒≡)
-open import Data.Nat
+open import Data.Sum
+open import Data.Nat hiding (_>_)
 open import Data.Nat.Properties
 open import Data.Fin.Properties as Fin
 open import Data.Fin using (Fin; zero; suc)
@@ -207,3 +209,84 @@ otherNeighborIsMine grid neighborMineCount otherNeighbor ((safeCoords , safeCoor
       cardinality safeEnumeration + cardinality mineEnumeration ∸ cardinality mineEnumeration ≡⟨ m+n∸n≡m (cardinality safeEnumeration) (cardinality mineEnumeration) ⟩
       cardinality safeEnumeration ∎
       where open ≡-Reasoning
+
+
+
+-- _[_]↝★_ is complete with respect to _[_]↝✓_ !
+-- roughly, this says that, given a partially filled board, and any tile on it that is either always safe or always a mine,
+-- we can construct a proof that it always has that identity using only the rules given by _[_]↝★_
+✓⇒★ : ∀ {bounds} (grid : Board Tile bounds) coords guess → grid [ coords ]↝✓ guess → grid [ coords ]↝★ guess
+
+-- we proceed by induction on how "filled in" `grid` is. see the definition of _>_ in Minesweeper.Moves for more details
+✓⇒★ {bounds} = >-rec _ ✓⇒★′ where
+  ✓⇒★′ : ∀ (grid : Board Tile bounds) →
+    (∀ filled → filled > grid → ∀ coords guess → filled [ coords ]↝✓ guess → filled [ coords ]↝★ guess) →
+      ∀ coords guess → grid [ coords ]↝✓ guess → grid [ coords ]↝★ guess
+
+  -- through case analysis, we can exhaustively consider every possible choice until we've filled the entire board
+  ✓⇒★′ grid ✓⇒★-rec coords guess coords↝✓guess with holey⊎filled grid
+
+  -- if there's an unfilled tile left, we can apply the `cases★` rule to consider all possible ways of filling it
+  ✓⇒★′ grid ✓⇒★-rec coords guess coords↝✓guess | inj₁ (unfilledCoords , unfilledCoords-unknown) =
+    cases★ unfilledCoords guess
+      λ tile → ✓⇒★-rec
+        (grid [ unfilledCoords ]≔ known tile)
+        (fill-> unfilledCoords grid tile unfilledCoords-unknown)
+        coords
+        guess
+        λ fullyFilled filled↝⊞fullyFilled fullyFilled✓ → coords↝✓guess
+          fullyFilled
+          (≥-↝⊞-trans (>⇒≥ (fill-> unfilledCoords grid tile unfilledCoords-unknown)) filled↝⊞fullyFilled)
+          fullyFilled✓
+
+  -- otherwise, `grid` is entirely filled. our assumption `coords↝✓guess` that `grid [ coords ]↝✓ guess` guarantees that
+  -- if there are no contradictions in `grid`, then we can find `guess` at `coords`.
+  ✓⇒★′ grid ✓⇒★-rec coords guess coords↝✓guess | inj₂ grid-filled with unwrap grid-filled ✓?
+
+  -- in the case that `guess` can be found on `grid` at `coords`, we can use the `known★` rule
+  ✓⇒★′ grid ✓⇒★-rec coords guess coords↝✓guess | inj₂ grid-filled | yes grid′✓ with coords↝✓guess (unwrap grid-filled) (↝⊞-unwrap grid-filled) grid′✓
+  ... | guess⚐✓tile rewrite lookup∘unwrap grid-filled coords =
+    known★ (proj₁ (grid-filled coords)) guess (proj₂ (grid-filled coords)) guess⚐✓tile
+
+  -- otherwise, there must be a contradiction somewhere on `grid`, so we can use the `exfalso★` rule
+  ✓⇒★′ grid ✓⇒★-rec coords guess coords↝✓guess | inj₂ grid-filled | no ¬grid′✓ with identify-contradiction (unwrap grid-filled) ¬grid′✓
+  ... | badCoords , ¬grid′[badCoords]✓ rewrite lookup∘unwrap grid-filled badCoords with grid-filled badCoords
+
+  -- the contradiction can't be at a mine, since only safe tiles are considered when determining if a board is consistent
+  ... | mine , badCoords↦badTile = ⊥-elim (¬grid′[badCoords]✓ tt)
+
+  -- at a safe tile reporting `n` neighboring mines, our assumption that there's a contradiction at that tile gives us that
+  -- there is *no* `Enumeration` of its neighboring mines with cardinality `n`. we can use this to build a `Contradiction`
+  -- in order to apply the `exfalso★` rule.
+  ... | safe n , badCoords↦badTile =
+    exfalso★ guess record
+      { coords = badCoords
+      ; supposedMineCount = n
+      ; coords-mineCount = badCoords↦badTile
+      ; neighborGuesses = neighborGuesses
+      ; neighborsKnown★ = λ i →
+        known★
+          (proj₁ (neighbors-filled i))
+          (neighborGuesses i)
+          (proj₂ (neighbors-filled i))
+          (tileType-⚐✓ _)
+      ; disparity = n≢mineCount }
+    where
+      neighbors : Fin (Coords.neighborCount badCoords) → Coords bounds
+      neighbors = proj₁ ∘ (Inverse.to (Enumeration.lookup (Coords.neighbors badCoords)) ⟨$⟩_)
+
+      neighbors-filled : ∀ i → ∃[ tile ] (lookup (neighbors i) grid ≡ known tile)
+      neighbors-filled = grid-filled ∘ neighbors
+
+      neighborGuesses : Fin (Coords.neighborCount badCoords) → Guess
+      neighborGuesses = tileType ∘ proj₁ ∘ neighbors-filled
+
+      mineCounts-agree : Enum.count (mine⚐ ≟⚐_) neighborGuesses ≡ cardinality (neighboringMines (unwrap grid-filled) badCoords)
+      mineCounts-agree = Enum.count-≡ _ _ _ _ (guesses-agree ∘ neighbors) where
+        guesses-agree : ∀ coords → mine⚐ ≡ tileType (proj₁ (grid-filled coords)) ⇔ mine⚐ ⚐✓ lookup coords (unwrap grid-filled)
+        guesses-agree coords rewrite lookup∘unwrap grid-filled coords with proj₁ (grid-filled coords)
+        ...                                                              | mine   = equivalence (const ⚐✓mine) (const refl)
+        ...                                                              | safe _ = equivalence (λ ())         (λ ())
+
+      n≢mineCount : n ≢ Enum.count (mine⚐ ≟⚐_) neighborGuesses
+      n≢mineCount = ¬grid′[badCoords]✓ ∘ (neighboringMines (unwrap grid-filled) badCoords ,_) ∘ flip trans mineCounts-agree
