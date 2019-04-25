@@ -18,6 +18,9 @@ open ≡-Reasoning
 open import Minesweeper.Enumeration as Enum using (Enumeration)
 open import Minesweeper.Coords hiding (_≟_)
 
+-- Boards are 2D grids of tiles. they're parameterized over a type of tile, which we'll either instantiate with
+-- `KnownTile` (when all tiles' identities are known) or `Tile` (when the board may have some unknown tiles).
+-- for more about tiles, see Rules.agda and Moves.agda
 Board : Set → Bounds → Set
 Board A (w , h) = Vec (Vec A w) h
 

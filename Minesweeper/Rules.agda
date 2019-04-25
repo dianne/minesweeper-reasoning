@@ -1,4 +1,5 @@
--- the rules of filled minesweeper boards: do the numbers tell the truth?
+-- here we describe the "rules" of minesweeper,
+-- or what it means for the tiles of an entirely known board to be consistent with each other
 
 module Minesweeper.Rules where
 
@@ -16,10 +17,15 @@ open import Minesweeper.Coords
 open import Minesweeper.Board
 open import Minesweeper.Enumeration as Enum using (Enumeration)
 
+-- KnownTile represents the tiles of a completely filled board:
+-- they're all either mines, or safe tiles labeled with how many mines there are adjacent to them
 data KnownTile : Set where
   mine : KnownTile
   safe : ℕ → KnownTile
 
+-- Guess represents the type of a tile. the name is due to how they're used to reason about the identities of unknown tiles,
+-- since a `safe⚐` guess could correspond to a safe tile `safe n` for any `n`. following the name, the "⚐" mnemonic is meant
+-- to evoke placing flags over unknown tiles with mines in Windows minesweeper to mark them as such.
 data Guess : Set where
   mine⚐ : Guess
   safe⚐ : Guess
@@ -30,14 +36,14 @@ data _⚐✓_ : Guess → KnownTile → Set where
   ⚐✓safe : ∀ n → safe⚐ ⚐✓ safe n
 
 
--- a numbered tile is good if the number on it matches the number of mines adjacent to it.
--- since all Enumerations of a type have the same length, it's sufficient to provide only one as evidence
+-- consistency: `grid [ coords ]✓` means that if `grid` has a safe tile at `coords`, then the number on it agrees with the number of mines adjacent to it.
+-- since only safe tiles are checked in this way, coordinates with mines are always regarded as valid, regardless of if they have adjacent inconsistent safe tiles.
 _[_]✓ : ∀ {bounds} → Board KnownTile bounds → Coords bounds → Set
 _[_]✓ {bounds} grid coords with lookup coords grid
 ... | mine = ⊤
 ... | safe n = Σ[ neighboringMines ∈ Enumeration ((mine⚐ ⚐✓_) Neighboring coords on grid) ] n ≡ Enumeration.cardinality neighboringMines
 
--- a board is good if all positions on it are good
+-- a board `grid` is consistent (written `grid ✓`) if every tile on it is consistent with its neighbors
 _✓ : ∀ {bounds} → Board KnownTile bounds → Set
 _✓ {bounds} grid = ∀ coords → grid [ coords ]✓
 

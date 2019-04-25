@@ -1,5 +1,7 @@
--- a hopefully-self-evident description of valid minesweeper moves
--- and several lemmas about it
+-- this module is dedicated to definitions and lemmas regarding partially known boards. importantly, we want to reason about when
+-- an unknown tile will, when revealed, always be a mine or a safe tile. I refer to assigning guesses like that as "moves" and
+-- call them "valid" when they will always hold, in reference to the actions of marking tiles as mines or revealing safe tiles
+-- when playing minesweeper.
 
 module Minesweeper.Moves where
 
@@ -31,11 +33,13 @@ open import Minesweeper.Coords as Coords
 open import Minesweeper.Board
 open import Minesweeper.Rules
 
+-- Tile represents the tiles of a board that may have a mix of known and unknown tiles, like those in a game of minesweeper
 data Tile : Set where
   known   : KnownTile → Tile
   unknown : Tile
 
--- tile filling: an unknown tile can be filled with anything
+-- tile filling: to relate filled and partial boards, we can fill in the tiles of a partial board to make a full board.
+-- known tiles can only be "filled" with themselves, whereas unknown tiles can be filled with anything.
 data _↝▣_ : Tile → KnownTile → Set where
   ↝▣known   : ∀ s → known s ↝▣ s
   ↝▣unknown : ∀ s → unknown ↝▣ s
@@ -45,7 +49,11 @@ _↝⊞_ : ∀ {bounds} → Board Tile bounds → Board KnownTile bounds → Set
 _↝⊞_ = Pointwise _↝▣_
 
 
--- move validity: a guess as to a tile's identity on a board is valid when it holds in every rule-respecting way to fill the board's unfilled tiles
+-- move validity: a guess as to a tile's identity on a board is valid when it holds in every rule-respecting way to fill the board's unfilled tiles.
+-- here, "rule-respecting" means that we're only considering the filled boards where the numbers on the safe tiles match with the number of mines
+-- adjacent to them. see Rules.agda for more details
+-- in a game of minesweeper, a guess that a tile is safe or a mine being valid means that it definitely will be that. an invalid guess can still by
+-- chance be right in a specific game you're playing, but there is some way of assigning the unknown tiles where you will be wrong.
 _[_]↝✓_ : ∀ {bounds} → Board Tile bounds → Coords bounds → Guess → Set
 grid [ coords ]↝✓ guess = ∀ grid′ →
   grid ↝⊞ grid′ →

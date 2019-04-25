@@ -17,9 +17,11 @@ open import Function
 
 open import Minesweeper.Enumeration as Enum using (Enumeration)
 
+-- Bounds are board boundaries/dimensions
 Bounds : Set
 Bounds = ℕ × ℕ
 
+-- Coords are coordinates on a board of a given size, used as a way to point to a specific tile.
 Coords : Bounds → Set
 Coords (w , h) = Fin w × Fin h
 
