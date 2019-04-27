@@ -33,13 +33,13 @@ open import Minesweeper.Moves
 open Enumeration using (cardinality)
 
 
--- our inductive family for minesweeper proofs!
+-- our inductive family for proofs that minesweeper moves are valid!
 data _[_]↝★_ {bounds} (grid : Board Tile bounds) (coords : Coords bounds) : Guess → Set
 record Contradiction {bounds} (grid : Board Tile bounds) : Set
 
 -- noticing contradictions lets us narrow our resoning by dismissing impossible board states.
 -- here we define a contradiction as the existence of a known safe tile whose neighbors we can identify
--- and whose reported neighboring mine count does not match with the number of mines among those neighbors.
+-- and whose reported neighboring mine count does not match with the number of mines among that provided list of neighbors.
 record Contradiction {bounds} grid where
   inductive
   field
@@ -66,21 +66,22 @@ data _[_]↝★_ {bounds} grid coords where
 
 
 -- let's do soundness first!
--- roughly, this says that if you use the rules given by _[_]↝★_ to determine whether a tile is safe or a mine,
+-- roughly, this says that if you use the rules given by _[_]↝★_ to determine (or "guess") whether a tile is safe or a mine,
 -- it will indeed be that, for every possible way the unknown board tiles could be "filled in"
 ★⇒✓ : ∀ {bounds guess} (grid : Board Tile bounds) coords → grid [ coords ]↝★ guess → grid [ coords ]↝✓ guess
 
--- when the tile we're looking at is already known, it will stay the same in all ways of completing the board.
--- so as long as our guess agrees with its current state, it's valid
+-- if the tile we're looking at is already known, it will stay the same in all ways of completing the board,
+-- so it's sound to use the known★ rule to guess that a tile has the type you already know it has.
 ★⇒✓ grid coords (known★ tile guess coords↦tile guess⚐✓tile) grid′ grid↝⊞grid′ grid′✓ = subst (guess ⚐✓_) (known-↝▣⇒≡ coords↦tile (grid↝⊞grid′ coords)) guess⚐✓tile
 
--- for a proof by cases★ on the final board, only the case that applies to our actual final board `grid′` applies
+-- when considering proofs formed with the cases★ rule, for any way of completing our board, we can see which case actually applies to that final board.
+-- inductively, we may assume the proof given by that case is sound, so our guess holds for whichever tile we're looking at.
 ★⇒✓ grid coords (cases★ testCoords guess cases) grid′ grid↝⊞grid′ grid′✓ = ★⇒✓ _ _ (cases (lookup testCoords grid′)) grid′ gridWithTest↝⊞grid′ grid′✓ where
-  -- proofs by case analysis include information gained from which case is being inspected in the `grid`.
-  -- in the relevant case, our updated `grid` still can complete to `grid′`:
+  -- when looking at a specific case given by cases★, we update our board `grid` to include information about which case we're in.
+  -- in order to show that the results we get from this still apply to whichever final board `grid′` we're looking at, we have the following lemma:
   gridWithTest↝⊞grid′ : (grid [ testCoords ]≔ known (lookup testCoords grid′)) ↝⊞ grid′
   gridWithTest↝⊞grid′ coords′ with coords′ Coords.≟ testCoords
-  -- at the test coordinates, it updates to be the known tile at those coordinates on `grid′`, which is present on `grid′`
+  -- at the test coordinates, we've updated the tile to be the known tile at those coordinates on `grid′`. this is fine since it's present on `grid′` by construction
   ... | yes refl rewrite Board.lookup∘update coords′ grid (known (lookup coords′ grid′)) = ↝▣known (lookup coords′ grid′)
   -- and elsewhere it is the same as in `grid`, which is compatible with `grid′` by our assumption `grid↝⊞grid′` that `grid` and `grid′` are compatible
   ... | no coords′≢testCoords rewrite Board.lookup∘update′ coords′≢testCoords grid (known (lookup testCoords grid′)) = grid↝⊞grid′ coords′
