@@ -102,10 +102,12 @@ allFin n = record
 -- to enumerate coordinates on a board, we take the cartesian product of the rows and columns
 module _ {a b ℓ₁ ℓ₂} {A : Setoid a ℓ₁} {B : Setoid b ℓ₂} where
   open import Data.Product.Relation.Binary.Pointwise.NonDependent
+  open import Data.Product.Function.NonDependent.Setoid
+  open import Data.Product.Function.NonDependent.Propositional
   open import Data.Unit
   open import Data.List as List hiding (lookup)
   open import Data.List.Properties using (length-replicate)
-  open import Data.List.Relation.Unary.Any
+  open import Data.List.Relation.Unary.Any hiding (lookup)
   open import Data.List.Membership.Propositional
   open import Data.List.Membership.Propositional.Properties
   open import Relation.Binary.HeterogeneousEquality as ≅ using (_≅_)

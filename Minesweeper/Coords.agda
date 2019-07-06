@@ -4,7 +4,8 @@ open import Data.Nat renaming (_≟_ to _ℕ≟_)
 open import Data.Integer using (∣_∣; _⊖_)
 open import Data.Integer.Properties using (∣m⊖n∣≡∣n⊖m∣)
 open import Data.Product
-open import Data.Product.Relation.Pointwise.NonDependent using (×-setoid; ≡×≡⇒≡; ≡?×≡?⇒≡?)
+import      Data.Product.Properties as ×
+open import Data.Product.Relation.Pointwise.NonDependent using (×-setoid; ≡×≡⇒≡)
 open import Data.Fin renaming (_≟_ to _Fin≟_)
 import      Data.Fin.Properties as Fin
 open import Relation.Nullary
@@ -55,7 +56,7 @@ Adjacent-sym (x₁ , y₁) (x₂ , y₂) coords₁-coords₂-Adj = begin
 
 
 _≟_ : ∀ {bounds} → Decidable₂ (_≡_ {A = Coords bounds})
-_≟_ = ≡?×≡?⇒≡? _Fin≟_ _Fin≟_
+_≟_ = ×.≡-dec _Fin≟_ _Fin≟_
 
 
 all? : ∀ {bounds p} {P : Coords bounds → Set p} → Decidable₁ P →

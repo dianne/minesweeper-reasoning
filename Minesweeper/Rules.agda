@@ -39,7 +39,7 @@ data _⚐✓_ : Guess → KnownTile → Set where
 -- consistency: `grid [ coords ]✓` means that if `grid` has a safe tile at `coords`, then the number on it agrees with the number of mines adjacent to it.
 -- since only safe tiles are checked in this way, coordinates with mines are always regarded as valid, regardless of if they have adjacent inconsistent safe tiles.
 _[_]✓ : ∀ {bounds} → Board KnownTile bounds → Coords bounds → Set
-_[_]✓ {bounds} grid coords with lookup coords grid
+_[_]✓ {bounds} grid coords with lookup grid coords
 ... | mine = ⊤
 ... | safe n = Σ[ neighboringMines ∈ Enumeration ((mine⚐ ⚐✓_) Neighboring coords on grid) ] n ≡ Enumeration.cardinality neighboringMines
 
@@ -72,7 +72,7 @@ neighboringMines : ∀ {bounds} (grid : Board KnownTile bounds) (coords : Coords
 neighboringMines = filterNeighbors (mine⚐ ⚐✓?_)
 
 _[_]✓? : ∀ {bounds} → Decidable₂ (_[_]✓ {bounds})
-grid [ coords ]✓? with lookup coords grid
+grid [ coords ]✓? with lookup grid coords
 ... | mine = yes tt
 ... | safe n with n ℕ.≟ Enumeration.cardinality (neighboringMines grid coords)
 ...             | yes n≡len = yes (neighboringMines grid coords , n≡len)

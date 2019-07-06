@@ -24,8 +24,8 @@ open import Minesweeper.Coords hiding (_≟_)
 Board : Set → Bounds → Set
 Board A (w , h) = Vec (Vec A w) h
 
-lookup : ∀ {A bounds} → Coords bounds → Board A bounds → A
-lookup (x , y) grid = Vec.lookup x (Vec.lookup y grid)
+lookup : ∀ {A bounds} → Board A bounds → Coords bounds → A
+lookup grid (x , y) = Vec.lookup (Vec.lookup grid y) x
 
 _[_]≔_ : ∀ {A bounds} → Board A bounds → Coords bounds → A → Board A bounds
 grid [ (x , y) ]≔ value = Vec.updateAt y (Vec._[ x ]≔ value) grid
@@ -35,17 +35,17 @@ grid [ (x , y) ]≔ value = Vec.updateAt y (Vec._[ x ]≔ value) grid
 -- we don't compare the proofs for equality, so we define their setoid equality as equality on the Neighbors
 _Neighboring_on_ : ∀ {p A bounds} → (A → Set p) → Coords bounds → Board A bounds → Setoid _ _
 P Neighboring coords on grid = On.setoid
-  {B = Σ[ neighbor ∈ Setoid.Carrier (Neighbor coords) ] P (lookup (proj₁ neighbor) grid)}
+  {B = Σ[ neighbor ∈ Setoid.Carrier (Neighbor coords) ] P (lookup grid (proj₁ neighbor))}
   (Neighbor coords)
   proj₁
 
 -- in order to get the neighbors of some coords satisfying P, we can filter all of its neighbors to just the ones satisfying P
 filterNeighbors : ∀ {p A bounds} {P : A → Set p} (P? : Decidable P) (grid : Board A bounds) (coords : Coords bounds) → Enumeration (P Neighboring coords on grid)
-filterNeighbors {P = P} P? grid coords = Enum.filter (P? ∘ flip lookup grid ∘ proj₁) (subst (P ∘ flip lookup grid) ∘ ≡×≡⇒≡) (neighbors coords)
+filterNeighbors {P = P} P? grid coords = Enum.filter (P? ∘ lookup grid ∘ proj₁) (subst (P ∘ lookup grid) ∘ ≡×≡⇒≡) (neighbors coords)
 
 
 Pointwise : ∀ {ℓ A B} (_∼_ : REL A B ℓ) {bounds} → REL (Board A bounds) (Board B bounds) _
-Pointwise _∼_ grid₁ grid₂ = ∀ coords → lookup coords grid₁ ∼ lookup coords grid₂
+Pointwise _∼_ grid₁ grid₂ = ∀ coords → lookup grid₁ coords ∼ lookup grid₂ coords
 
 Pointwise⇒VecPointwise : ∀ {ℓ A B} {_∼_ : REL A B ℓ} {bounds} {grid₁ : Board A bounds} {grid₂ : Board B bounds} →
   Pointwise _∼_ grid₁ grid₂ →
@@ -57,23 +57,23 @@ Pointwise⇒VecPointwise ₁∼₂ =
 
 
 lookup∘update : ∀ {A bounds} (coords : Coords bounds) (grid : Board A bounds) value →
-  lookup coords (grid [ coords ]≔ value) ≡ value
+  lookup (grid [ coords ]≔ value) coords ≡ value
 lookup∘update (x , y) grid value = begin
-  lookup (x , y) (grid [ x , y ]≔ value)
+  lookup (grid [ x , y ]≔ value) (x , y)
     ≡⟨⟩
-  Vec.lookup x (Vec.lookup y (Vec.updateAt y (Vec._[ x ]≔ value) grid))
-    ≡⟨ cong (Vec.lookup x) (VecProp.lookup∘updateAt y grid) ⟩
-  Vec.lookup x (Vec.lookup y grid Vec.[ x ]≔ value)
-    ≡⟨ VecProp.lookup∘update x (Vec.lookup y grid) value ⟩
+  Vec.lookup (Vec.lookup (Vec.updateAt y (Vec._[ x ]≔ value) grid) y) x
+    ≡⟨ cong (flip Vec.lookup x) (VecProp.lookup∘updateAt y grid) ⟩
+  Vec.lookup (Vec.lookup grid y Vec.[ x ]≔ value) x
+    ≡⟨ VecProp.lookup∘update x (Vec.lookup grid y) value ⟩
   value ∎
 
 lookup∘update′ : ∀ {A bounds} {coords₁ coords₂ : Coords bounds} → coords₁ ≢ coords₂ → ∀ (grid : Board A bounds) value →
-  lookup coords₁ (grid [ coords₂ ]≔ value) ≡ lookup coords₁ grid
+  lookup (grid [ coords₂ ]≔ value) coords₁ ≡ lookup grid coords₁
 lookup∘update′ {coords₁ = x₁ , y₁} {x₂ , y₂} coords₁≢coords₂ grid value with y₁ ≟ y₂
-... | no y₁≢y₂ = cong (Vec.lookup x₁) (VecProp.lookup∘updateAt′ y₁ y₂ y₁≢y₂ grid)
+... | no y₁≢y₂ = cong (flip Vec.lookup x₁) (VecProp.lookup∘updateAt′ y₁ y₂ y₁≢y₂ grid)
 ... | yes refl = begin
-  lookup (x₁ , y₁) (grid [ x₂ , y₁ ]≔ value)
-    ≡⟨ cong (Vec.lookup x₁) (VecProp.lookup∘updateAt y₁ grid) ⟩
-  Vec.lookup x₁ (Vec.lookup y₁ grid Vec.[ x₂ ]≔ value)
-    ≡⟨ VecProp.lookup∘update′ (coords₁≢coords₂ ∘ flip (curry ≡×≡⇒≡) refl) (Vec.lookup y₁ grid) value ⟩
-  Vec.lookup x₁ (Vec.lookup y₁ grid) ∎
+  lookup (grid [ x₂ , y₁ ]≔ value) (x₁ , y₁)
+    ≡⟨ cong (flip Vec.lookup x₁) (VecProp.lookup∘updateAt y₁ grid) ⟩
+  Vec.lookup (Vec.lookup grid y₁ Vec.[ x₂ ]≔ value) x₁
+    ≡⟨ VecProp.lookup∘update′ (coords₁≢coords₂ ∘ flip (curry ≡×≡⇒≡) refl) (Vec.lookup grid y₁) value ⟩
+  Vec.lookup (Vec.lookup grid y₁) x₁ ∎
